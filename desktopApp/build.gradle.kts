@@ -28,6 +28,6 @@ compose.desktop {
     }
 }
 
-tasks.withType<JavaExec>().matching { task -> task.name == "run" }.configureEach {
+tasks.withType<JavaExec>().matching { task -> task.name == "run" || task.name.startsWith("hot") }.configureEach {
     systemProperty("fehelper.debug", "true")
 }

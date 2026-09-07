@@ -86,7 +86,7 @@ fun App() {
         if (isDebugBuild()) {
             LaunchedEffect(key1 = Unit) {
                 snapshotFlow(block = { backStack.toList() }).collect { stack ->
-                    println("[Navigation] currentPage=${stack.lastOrNull()}, backStack=$stack")
+                    println("[Nav] currentPage=${stack.lastOrNull()}, backStack=$stack")
                 }
             }
         }
