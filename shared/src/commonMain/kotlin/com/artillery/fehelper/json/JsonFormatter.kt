@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -228,11 +229,13 @@ private fun JsonToolbar(
                 selected = view == JsonView.JSON,
                 onClick = { onViewChange(JsonView.JSON) },
                 label = { Text(text = "JSON") },
+                elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
             )
             FilterChip(
                 selected = view == JsonView.TABLE,
                 onClick = { onViewChange(JsonView.TABLE) },
                 label = { Text(text = "表格") },
+                elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
             )
         }
     }

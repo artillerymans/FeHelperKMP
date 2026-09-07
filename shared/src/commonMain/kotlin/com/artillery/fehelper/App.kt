@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -208,12 +209,14 @@ private fun LayoutToggle(
             onClick = { onLayoutChange(ToolLayout.LIST) },
             label = { Text(text = "列表") },
             modifier = Modifier.heightIn(min = 48.dp),
+            elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
         )
         FilterChip(
             selected = layout == ToolLayout.GRID,
             onClick = { onLayoutChange(ToolLayout.GRID) },
             label = { Text(text = "网格") },
             modifier = Modifier.heightIn(min = 48.dp),
+            elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
         )
     }
 }

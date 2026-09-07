@@ -1,8 +1,13 @@
 package com.artillery.fehelper.common
 
+import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.material3.RippleDefaults
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 internal val BrandBlue = Color(0xFF2F6FED)
@@ -27,7 +32,18 @@ private val FeHelperColorScheme = lightColorScheme(
     outline = Border,
 )
 
+private val FeHelperRippleConfiguration = RippleConfiguration(
+    rippleAlpha = RippleAlpha(
+        pressedAlpha = RippleDefaults.RippleAlpha.pressedAlpha,
+        focusedAlpha = RippleDefaults.RippleAlpha.focusedAlpha,
+        draggedAlpha = RippleDefaults.RippleAlpha.draggedAlpha,
+        hoveredAlpha = 0f,
+    ),
+)
+
 @Composable
 internal fun FeHelperTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = FeHelperColorScheme, content = content)
+    CompositionLocalProvider(LocalRippleConfiguration provides FeHelperRippleConfiguration) {
+        MaterialTheme(colorScheme = FeHelperColorScheme, content = content)
+    }
 }

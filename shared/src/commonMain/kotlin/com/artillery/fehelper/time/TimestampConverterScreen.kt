@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -353,6 +354,7 @@ private fun UnitSelector(selected: TimestampUnit, onSelected: (TimestampUnit) ->
                 onClick = { onSelected(unit) },
                 label = { Text(text = unit.label) },
                 modifier = Modifier.heightIn(min = 48.dp),
+                elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
             )
         }
     }

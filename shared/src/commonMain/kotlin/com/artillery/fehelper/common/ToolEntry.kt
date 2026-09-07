@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 internal data class ToolDefinition(
@@ -44,6 +45,7 @@ internal fun ToolEntryCard(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(hoveredElevation = 0.dp),
         border = BorderStroke(1.dp, Border),
     ) {
         if (layout == ToolLayout.LIST) {
@@ -79,6 +81,6 @@ private fun ToolEntryText(modifier: Modifier = Modifier, tool: ToolDefinition) {
         Spacer(modifier = Modifier.height(6.dp))
         Text(text = tool.title, style = MaterialTheme.typography.titleMedium.copy(color = Ink, fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(6.dp))
-        Text(text = tool.description, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk))
+        Text(text = tool.description, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
