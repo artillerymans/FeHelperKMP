@@ -54,7 +54,7 @@ internal fun timestampToLocalTime(value: String, unit: TimestampUnit): Timestamp
         }
     }.getOrNull() ?: return TimestampConversion(error = "时间戳超出有效时间范围")
 
-    return conversionFor(instant)
+    return conversionFor(instant = instant)
 }
 
 internal fun localTimeToTimestamp(value: String): TimestampConversion {
@@ -74,7 +74,7 @@ internal fun localTimeToTimestamp(value: String): TimestampConversion {
         ).toInstant(ShanghaiTimeZone)
     }.getOrNull() ?: return TimestampConversion(error = "本地时间无效")
 
-    return conversionFor(instant)
+    return conversionFor(instant = instant)
 }
 
 internal fun nowSnapshot(now: Instant = Clock.System.now()): TimeSnapshot {

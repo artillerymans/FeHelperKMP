@@ -49,9 +49,7 @@ internal fun PageTitleBar(
                 }
                 Text(
                     text = title,
-                    color = Ink,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleLarge.copy(color = Ink, fontWeight = FontWeight.SemiBold),
                 )
             }
         }

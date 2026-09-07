@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,10 +34,10 @@ internal enum class ToolLayout {
 
 @Composable
 internal fun ToolEntryCard(
+    modifier: Modifier = Modifier,
     tool: ToolDefinition,
     layout: ToolLayout,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     Card(
         onClick = onClick,
@@ -52,26 +53,32 @@ internal fun ToolEntryCard(
                     .padding(20.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                ToolEntryText(tool, Modifier.weight(1f))
-                Text("打开", color = BrandBlue, fontWeight = FontWeight.SemiBold)
+                ToolEntryText(modifier = Modifier.weight(1f), tool = tool)
+                Text(
+                    text = "打开",
+                    style = LocalTextStyle.current.copy(color = BrandBlue, fontWeight = FontWeight.SemiBold),
+                )
             }
         } else {
             Column(modifier = Modifier.padding(20.dp)) {
-                ToolEntryText(tool)
-                Spacer(Modifier.height(20.dp))
-                Text("打开工具", color = BrandBlue, fontWeight = FontWeight.SemiBold)
+                ToolEntryText(tool = tool)
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "打开工具",
+                    style = LocalTextStyle.current.copy(color = BrandBlue, fontWeight = FontWeight.SemiBold),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ToolEntryText(tool: ToolDefinition, modifier: Modifier = Modifier) {
-    Column(modifier) {
-        Text(tool.category, color = MutedInk, style = MaterialTheme.typography.labelMedium)
-        Spacer(Modifier.height(6.dp))
-        Text(tool.title, color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text(tool.description, color = MutedInk, style = MaterialTheme.typography.bodyMedium)
+private fun ToolEntryText(modifier: Modifier = Modifier, tool: ToolDefinition) {
+    Column(modifier = modifier) {
+        Text(text = tool.category, style = MaterialTheme.typography.labelMedium.copy(color = MutedInk))
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(text = tool.title, style = MaterialTheme.typography.titleMedium.copy(color = Ink, fontWeight = FontWeight.Bold))
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(text = tool.description, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk))
     }
 }

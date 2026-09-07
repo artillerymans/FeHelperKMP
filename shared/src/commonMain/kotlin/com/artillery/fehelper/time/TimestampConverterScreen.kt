@@ -14,17 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.artillery.fehelper.common.Border
 import com.artillery.fehelper.common.BrandBlue
@@ -80,8 +78,8 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
     ) {
         val wide = maxWidth >= 900.dp
         val horizontalPadding = if (wide) 32.dp else 16.dp
-        val snapshot = nowSnapshot(current)
-        val clocks = worldClocks(current)
+        val snapshot = nowSnapshot(now = current)
+        val clocks = worldClocks(now = current)
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -106,8 +104,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                 ) {
                     Text(
                         text = "以 Asia/Shanghai 为基准，快速完成本地时间、Unix 时间戳和世界时区转换",
-                        color = MutedInk,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk),
                     )
                     RealtimeCard(
                         snapshot = snapshot,
@@ -133,7 +130,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                                     timestampUnit = it
                                     timestampResult = null
                                 },
-                                onConvert = { timestampResult = timestampToLocalTime(timestampInput, timestampUnit) },
+                                onConvert = { timestampResult = timestampToLocalTime(value = timestampInput, unit = timestampUnit) },
                                 modifier = Modifier.weight(1f),
                             )
                             LocalTimeInputCard(
@@ -143,7 +140,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                                     localInput = it
                                     localResult = null
                                 },
-                                onConvert = { localResult = localTimeToTimestamp(localInput) },
+                                onConvert = { localResult = localTimeToTimestamp(value = localInput) },
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -160,7 +157,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                                 timestampUnit = it
                                 timestampResult = null
                             },
-                            onConvert = { timestampResult = timestampToLocalTime(timestampInput, timestampUnit) },
+                            onConvert = { timestampResult = timestampToLocalTime(value = timestampInput, unit = timestampUnit) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                         LocalTimeInputCard(
@@ -170,7 +167,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                                 localInput = it
                                 localResult = null
                             },
-                            onConvert = { localResult = localTimeToTimestamp(localInput) },
+                            onConvert = { localResult = localTimeToTimestamp(value = localInput) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -213,17 +210,17 @@ private fun RealtimeCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     stats.forEach { (label, value) ->
-                        StatItem(label, value, Modifier.weight(1f))
+                        StatItem(modifier = Modifier.weight(1f), label = label, value = value)
                     }
                 }
                 RealtimeToggleButton(isRunning = isRunning, onToggle = onToggle)
             }
         } else {
             stats.forEachIndexed { index, (label, value) ->
-                StatItem(label, value, Modifier.fillMaxWidth())
-                if (index != stats.lastIndex) Spacer(Modifier.height(12.dp))
+                StatItem(modifier = Modifier.fillMaxWidth(), label = label, value = value)
+                if (index != stats.lastIndex) Spacer(modifier = Modifier.height(12.dp))
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             RealtimeToggleButton(
                 isRunning = isRunning,
                 onToggle = onToggle,
@@ -235,42 +232,45 @@ private fun RealtimeCard(
 
 @Composable
 private fun RealtimeToggleButton(
+    modifier: Modifier = Modifier,
     isRunning: Boolean,
     onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Button(
-        onClick = onToggle,
-        modifier = modifier.heightIn(min = 48.dp),
-    ) {
-        if (!isRunning) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(if (isRunning) "暂停" else "开始")
-    }
+    Text(
+        text = if (isRunning) "暂停" else "开始",
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .background(BrandBlue, RoundedCornerShape(8.dp))
+            .clickable(role = Role.Button, onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        style = MaterialTheme.typography.labelLarge.copy(
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        ),
+    )
 }
 
 @Composable
-private fun StatItem(label: String, value: String, modifier: Modifier) {
+private fun StatItem(modifier: Modifier, label: String, value: String) {
     Column(modifier = modifier) {
-        Text(label, color = MutedInk, style = MaterialTheme.typography.labelMedium)
-        Spacer(Modifier.height(4.dp))
+        Text(text = label, style = MaterialTheme.typography.labelMedium.copy(color = MutedInk))
+        Spacer(modifier = Modifier.height(4.dp))
         SelectionContainer {
-            Text(value, color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(text = value, style = MaterialTheme.typography.titleMedium.copy(color = Ink, fontWeight = FontWeight.SemiBold))
         }
     }
 }
 
 @Composable
 private fun TimestampInputCard(
+    modifier: Modifier,
     input: String,
     unit: TimestampUnit,
     result: TimestampConversion?,
     onInputChange: (String) -> Unit,
     onUnitChange: (TimestampUnit) -> Unit,
     onConvert: () -> Unit,
-    modifier: Modifier,
 ) {
     Column(modifier = modifier) {
         SectionCard(title = "Unix 时间戳 → 本地时间", description = "按 Asia/Shanghai 展示转换结果") {
@@ -278,33 +278,37 @@ private fun TimestampInputCard(
                 value = input,
                 onValueChange = onInputChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Unix 时间戳") },
-                placeholder = { Text("例如 1757304000") },
+                label = { Text(text = "Unix 时间戳") },
+                placeholder = { Text(text = "例如 1757304000") },
                 singleLine = true,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             UnitSelector(selected = unit, onSelected = onUnitChange)
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onConvert,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text("转换为本地时间")
-            }
-            Spacer(Modifier.height(12.dp))
-            ResultField("Asia/Shanghai 本地时间", result?.localTime)
-            ErrorText(result?.error)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "转换为本地时间",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .background(BrandBlue, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onConvert)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.labelLarge.copy(color = Color.White, textAlign = TextAlign.Center),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ResultField(label = "Asia/Shanghai 本地时间", value = result?.localTime)
+            ErrorText(error = result?.error)
         }
     }
 }
 
 @Composable
 private fun LocalTimeInputCard(
+    modifier: Modifier,
     input: String,
     result: TimestampConversion?,
     onInputChange: (String) -> Unit,
     onConvert: () -> Unit,
-    modifier: Modifier,
 ) {
     Column(modifier = modifier) {
         SectionCard(title = "本地时间 → Unix 时间戳", description = "输入时间按 Asia/Shanghai 解析") {
@@ -312,22 +316,26 @@ private fun LocalTimeInputCard(
                 value = input,
                 onValueChange = onInputChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("本地时间") },
-                placeholder = { Text("如 2026-10-07 10:10") },
+                label = { Text(text = "本地时间") },
+                placeholder = { Text(text = "如 2026-10-07 10:10") },
                 singleLine = true,
             )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onConvert,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text("转换为时间戳")
-            }
-            Spacer(Modifier.height(12.dp))
-            ResultField("Unix 秒", result?.seconds)
-            Spacer(Modifier.height(8.dp))
-            ResultField("Unix 毫秒", result?.milliseconds)
-            ErrorText(result?.error)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "转换为时间戳",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .background(BrandBlue, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onConvert)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.labelLarge.copy(color = Color.White, textAlign = TextAlign.Center),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ResultField(label = "Unix 秒", value = result?.seconds)
+            Spacer(modifier = Modifier.height(8.dp))
+            ResultField(label = "Unix 毫秒", value = result?.milliseconds)
+            ErrorText(error = result?.error)
         }
     }
 }
@@ -338,12 +346,12 @@ private fun UnitSelector(selected: TimestampUnit, onSelected: (TimestampUnit) ->
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("输入单位", color = MutedInk, style = MaterialTheme.typography.labelLarge)
+        Text(text = "输入单位", style = MaterialTheme.typography.labelLarge.copy(color = MutedInk))
         TimestampUnit.entries.forEach { unit ->
             FilterChip(
                 selected = selected == unit,
                 onClick = { onSelected(unit) },
-                label = { Text(unit.label) },
+                label = { Text(text = unit.label) },
                 modifier = Modifier.heightIn(min = 48.dp),
             )
         }
@@ -356,8 +364,8 @@ private fun ResultField(label: String, value: String?) {
         value = value.orEmpty(),
         onValueChange = {},
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(label) },
-        placeholder = { Text("转换后显示") },
+        label = { Text(text = label) },
+        placeholder = { Text(text = "转换后显示") },
         readOnly = true,
         singleLine = true,
     )
@@ -366,8 +374,8 @@ private fun ResultField(label: String, value: String?) {
 @Composable
 private fun ErrorText(error: String?) {
     error?.let {
-        Spacer(Modifier.height(8.dp))
-        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = it, style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.error))
     }
 }
 
@@ -385,10 +393,9 @@ private fun WorldClockCard(
         clocks.firstOrNull { it.offsetHours == selectedOffset }?.let { selectedClock ->
             Text(
                 text = "当前选择：${selectedClock.label} · ${selectedClock.localTime}",
-                color = BrandBlue,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
         val columns = if (wide) 2 else 1
         clocks.chunked(columns).forEachIndexed { rowIndex, rowClocks ->
@@ -404,19 +411,19 @@ private fun WorldClockCard(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                repeat(columns - rowClocks.size) { Spacer(Modifier.weight(1f)) }
+                repeat(columns - rowClocks.size) { Spacer(modifier = Modifier.weight(1f)) }
             }
-            if (rowIndex != (clocks.size - 1) / columns) Spacer(Modifier.height(12.dp))
+            if (rowIndex != (clocks.size - 1) / columns) Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
 
 @Composable
 private fun WorldClockItem(
+    modifier: Modifier,
     clock: WorldClock,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier,
 ) {
     Surface(
         onClick = onClick,
@@ -426,9 +433,9 @@ private fun WorldClockItem(
         border = BorderStroke(1.dp, if (selected) BrandBlue else Border),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(clock.label, color = if (selected) BrandBlue else Ink, style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            Text(clock.localTime, color = MutedInk, style = MaterialTheme.typography.bodyMedium)
+            Text(text = clock.label, style = MaterialTheme.typography.labelLarge.copy(color = if (selected) BrandBlue else Ink))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = clock.localTime, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk))
         }
     }
 }

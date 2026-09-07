@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,10 +36,13 @@ internal fun SectionCard(
         border = BorderStroke(1.dp, Border),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(title, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Text(description, color = MutedInk, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(16.dp))
+            Text(
+                text = title,
+                style = TextStyle(color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold),
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = description, style = MaterialTheme.typography.bodySmall.copy(color = MutedInk))
+            Spacer(modifier = Modifier.height(16.dp))
             content()
         }
     }
@@ -46,22 +50,22 @@ internal fun SectionCard(
 
 @Composable
 internal fun NumberField(
+    modifier: Modifier = Modifier,
     label: String,
     value: String,
     suffix: String,
     error: String?,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
-        label = { Text(label) },
-        suffix = { Text(suffix) },
+        label = { Text(text = label) },
+        suffix = { Text(text = suffix) },
         singleLine = true,
         isError = error != null,
-        supportingText = error?.let { message -> { Text(message) } },
+        supportingText = error?.let { message -> { Text(text = message) } },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
     )
 }

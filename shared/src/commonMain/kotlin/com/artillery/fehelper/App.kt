@@ -144,10 +144,10 @@ private fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = if (wide) 32.dp else 16.dp, vertical = 24.dp),
         ) {
-            Text("前端工具", color = Ink, style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(8.dp))
-            Text("选择一个工具开始使用", color = MutedInk, style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(24.dp))
+            Text(text = "前端工具", style = MaterialTheme.typography.headlineMedium.copy(color = Ink))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "选择一个工具开始使用", style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk))
+            Spacer(modifier = Modifier.height(24.dp))
 
             if (wide) {
                 Row(
@@ -155,40 +155,40 @@ private fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SearchField(query, { query = it }, Modifier.weight(1f))
-                    LayoutToggle(layout, { layout = it })
+                    SearchField(modifier = Modifier.weight(1f), query = query, onQueryChange = { query = it })
+                    LayoutToggle(layout = layout, onLayoutChange = { layout = it })
                 }
             } else {
-                SearchField(query, { query = it }, Modifier.fillMaxWidth())
-                Spacer(Modifier.height(12.dp))
+                SearchField(modifier = Modifier.fillMaxWidth(), query = query, onQueryChange = { query = it })
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    LayoutToggle(layout, { layout = it })
+                    LayoutToggle(layout = layout, onLayoutChange = { layout = it })
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-            Text("工具目录", color = Ink, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(12.dp))
-            ToolResults(visibleTools, layout, wide, onToolClick)
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(text = "工具目录", style = MaterialTheme.typography.titleLarge.copy(color = Ink))
+            Spacer(modifier = Modifier.height(12.dp))
+            ToolResults(tools = visibleTools, layout = layout, wide = wide, onToolClick = onToolClick)
         }
     }
 }
 
 @Composable
 private fun SearchField(
+    modifier: Modifier = Modifier,
     query: String,
     onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier,
-        label = { Text("搜索工具") },
-        placeholder = { Text("输入工具名称或类别") },
+        label = { Text(text = "搜索工具") },
+        placeholder = { Text(text = "输入工具名称或类别") },
         singleLine = true,
     )
 }
@@ -202,17 +202,17 @@ private fun LayoutToggle(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("展示方式", color = MutedInk, style = MaterialTheme.typography.labelLarge)
+        Text(text = "展示方式", style = MaterialTheme.typography.labelLarge.copy(color = MutedInk))
         FilterChip(
             selected = layout == ToolLayout.LIST,
             onClick = { onLayoutChange(ToolLayout.LIST) },
-            label = { Text("列表") },
+            label = { Text(text = "列表") },
             modifier = Modifier.heightIn(min = 48.dp),
         )
         FilterChip(
             selected = layout == ToolLayout.GRID,
             onClick = { onLayoutChange(ToolLayout.GRID) },
-            label = { Text("网格") },
+            label = { Text(text = "网格") },
             modifier = Modifier.heightIn(min = 48.dp),
         )
     }
@@ -226,14 +226,19 @@ private fun ToolResults(
     onToolClick: (ToolDefinition) -> Unit,
 ) {
     if (tools.isEmpty()) {
-        Text("没有匹配的工具", color = MutedInk, style = MaterialTheme.typography.bodyLarge)
+        Text(text = "没有匹配的工具", style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk))
         return
     }
 
     if (layout == ToolLayout.LIST) {
         tools.forEachIndexed { index, tool ->
-            ToolEntryCard(tool, layout, { onToolClick(tool) }, Modifier.fillMaxWidth())
-            if (index != tools.lastIndex) Spacer(Modifier.height(12.dp))
+            ToolEntryCard(
+                modifier = Modifier.fillMaxWidth(),
+                tool = tool,
+                layout = layout,
+                onClick = { onToolClick(tool) },
+            )
+            if (index != tools.lastIndex) Spacer(modifier = Modifier.height(12.dp))
         }
         return
     }
@@ -245,10 +250,15 @@ private fun ToolResults(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             rowTools.forEach { tool ->
-                ToolEntryCard(tool, layout, { onToolClick(tool) }, Modifier.weight(1f))
+                ToolEntryCard(
+                    modifier = Modifier.weight(1f),
+                    tool = tool,
+                    layout = layout,
+                    onClick = { onToolClick(tool) },
+                )
             }
-            repeat(columns - rowTools.size) { Spacer(Modifier.weight(1f)) }
+            repeat(columns - rowTools.size) { Spacer(modifier = Modifier.weight(1f)) }
         }
-        if (index != (tools.size - 1) / columns) Spacer(Modifier.height(12.dp))
+        if (index != (tools.size - 1) / columns) Spacer(modifier = Modifier.height(12.dp))
     }
 }

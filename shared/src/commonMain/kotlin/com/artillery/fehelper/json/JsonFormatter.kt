@@ -2,6 +2,7 @@ package com.artillery.fehelper.json
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +22,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -38,11 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.artillery.fehelper.common.Border
+import com.artillery.fehelper.common.BrandBlue
 import com.artillery.fehelper.common.Ink
 import com.artillery.fehelper.common.MutedInk
 import com.artillery.fehelper.common.PageBackground
@@ -65,14 +67,14 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
 
     fun updateFromInput(value: String) {
         rawJson = value
-        val parsed = runCatching { parseJson(value) }.getOrNull()
+        val parsed = runCatching { parseJson(text = value) }.getOrNull()
         parsedElement = parsed
         displayElement = parsed
         if (parsed == null) {
             formattedJson = ""
             error = "JSON 格式无效"
         } else {
-            formattedJson = formatJson(parsed)
+            formattedJson = formatJson(element = parsed)
             error = null
         }
         view = JsonView.JSON
@@ -86,15 +88,15 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
     }
 
     fun format() {
-        parsedElement?.let { show(it) } ?: Unit
+        parsedElement?.let { show(element = it) } ?: Unit
     }
 
     fun sort() {
-        parsedElement?.let { show(sortJson(it)) } ?: Unit
+        parsedElement?.let { show(element = sortJson(element = it)) } ?: Unit
     }
 
     fun decode() {
-        parsedElement?.let { show(it, decodeJsonText(it)) } ?: Unit
+        parsedElement?.let { show(element = it, text = decodeJsonText(element = it)) } ?: Unit
     }
 
     BoxWithConstraints(
@@ -132,7 +134,7 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                         view = view,
                         onViewChange = { view = it },
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     if (wide) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -163,7 +165,7 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                             height = 360.dp,
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         JsonOutputPanel(
                             title = "格式化结果",
                             value = formattedJson,
@@ -193,20 +195,44 @@ private fun JsonToolbar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Button(onClick = onFormat) { Text("格式化") }
-            Button(onClick = onSort) { Text("排序") }
-            Button(onClick = onDecode) { Text("解码") }
+            Text(
+                text = "格式化",
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .background(BrandBlue, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onFormat)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
+            )
+            Text(
+                text = "排序",
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .background(BrandBlue, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onSort)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
+            )
+            Text(
+                text = "解码",
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .background(BrandBlue, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onDecode)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = view == JsonView.JSON,
                 onClick = { onViewChange(JsonView.JSON) },
-                label = { Text("JSON") },
+                label = { Text(text = "JSON") },
             )
             FilterChip(
                 selected = view == JsonView.TABLE,
                 onClick = { onViewChange(JsonView.TABLE) },
-                label = { Text("表格") },
+                label = { Text(text = "表格") },
             )
         }
     }
@@ -214,36 +240,42 @@ private fun JsonToolbar(
 
 @Composable
 private fun JsonEditorPanel(
+    modifier: Modifier,
     title: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier,
     height: Dp,
 ) {
-    JsonPanel(title, modifier.height(height)) {
+    JsonPanel(
+        modifier = modifier.height(height),
+        title = title,
+    ) {
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp).weight(1f),
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-            placeholder = { Text("粘贴 JSON") },
+            placeholder = { Text(text = "粘贴 JSON") },
         )
     }
 }
 
 @Composable
 private fun JsonOutputPanel(
+    modifier: Modifier,
     title: String,
     value: String,
     error: String?,
     element: JsonElement?,
     view: JsonView,
-    modifier: Modifier,
     height: Dp,
 ) {
-    JsonPanel(title, modifier.height(height)) {
+    JsonPanel(
+        modifier = modifier.height(height),
+        title = title,
+    ) {
         if (view == JsonView.TABLE && element != null) {
-            JsonTableView(jsonTable(element), Modifier.weight(1f))
+            JsonTableView(modifier = Modifier.weight(1f), table = jsonTable(element = element))
         } else {
             OutlinedTextField(
                 value = value,
@@ -255,16 +287,16 @@ private fun JsonOutputPanel(
             )
         }
         error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = it, style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.error))
         }
     }
 }
 
 @Composable
 private fun JsonPanel(
-    title: String,
     modifier: Modifier,
+    title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
@@ -274,15 +306,15 @@ private fun JsonPanel(
         border = BorderStroke(1.dp, Border),
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text(title, color = Ink, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
+            Text(text = title, style = MaterialTheme.typography.titleMedium.copy(color = Ink))
+            Spacer(modifier = Modifier.height(12.dp))
             content()
         }
     }
 }
 
 @Composable
-private fun JsonTableView(table: JsonTable, modifier: Modifier) {
+private fun JsonTableView(modifier: Modifier, table: JsonTable) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -294,8 +326,7 @@ private fun JsonTableView(table: JsonTable, modifier: Modifier) {
                 Text(
                     text = column,
                     modifier = Modifier.width(160.dp).padding(12.dp),
-                    color = Ink,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(color = Ink),
                 )
             }
         }
@@ -306,8 +337,7 @@ private fun JsonTableView(table: JsonTable, modifier: Modifier) {
                     Text(
                         text = value,
                         modifier = Modifier.width(160.dp).padding(12.dp),
-                        color = MutedInk,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.copy(color = MutedInk),
                     )
                 }
             }
