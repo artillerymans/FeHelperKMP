@@ -49,6 +49,7 @@ import com.artillery.fehelper.common.PageTitleBar
 import com.artillery.fehelper.common.SectionCard
 import kotlinx.coroutines.delay
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 internal fun TimestampConverterScreen(onBack: () -> Unit) {
@@ -66,7 +67,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
         if (isRunning) {
             while (true) {
                 current = Clock.System.now()
-                delay(1000)
+                delay(1000.milliseconds)
             }
         }
     }
