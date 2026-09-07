@@ -40,9 +40,11 @@ import com.artillery.fehelper.common.ToolDefinition
 import com.artillery.fehelper.common.ToolEntryCard
 import com.artillery.fehelper.common.ToolLayout
 import com.artillery.fehelper.json.JsonFormatterScreen
+import com.artillery.fehelper.time.TimestampConverterScreen
 
 private const val AmzToolId = "amz-water-ticket"
 private const val JsonFormatterToolId = "json-formatter"
+private const val TimestampConverterToolId = "timestamp-converter"
 
 private val tools = listOf(
     ToolDefinition(
@@ -57,12 +59,19 @@ private val tools = listOf(
         description = "格式化、排序、解码 JSON，支持表格视图",
         category = "开发工具",
     ),
+    ToolDefinition(
+        id = TimestampConverterToolId,
+        title = "时间（戳）转换",
+        description = "本地时间与 Unix 时间戳互转，支持秒、毫秒和世界时钟",
+        category = "开发工具",
+    ),
 )
 
 private enum class Destination {
     HOME,
     AMZ_CALCULATOR,
     JSON_FORMATTER,
+    TIMESTAMP_CONVERTER,
 }
 
 @Composable
@@ -84,6 +93,7 @@ fun App() {
                             when (tool.id) {
                                 AmzToolId -> backStack.add(Destination.AMZ_CALCULATOR)
                                 JsonFormatterToolId -> backStack.add(Destination.JSON_FORMATTER)
+                                TimestampConverterToolId -> backStack.add(Destination.TIMESTAMP_CONVERTER)
                             }
                         },
                     )
@@ -93,6 +103,9 @@ fun App() {
                 }
                 entry(Destination.JSON_FORMATTER) {
                     JsonFormatterScreen(onBack = navigateBack)
+                }
+                entry(Destination.TIMESTAMP_CONVERTER) {
+                    TimestampConverterScreen(onBack = navigateBack)
                 }
             },
         )
