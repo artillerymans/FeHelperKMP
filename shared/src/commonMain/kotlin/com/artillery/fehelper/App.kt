@@ -234,34 +234,42 @@ private fun ToolResults(
     }
 
     if (layout == ToolLayout.LIST) {
-        tools.forEachIndexed { index, tool ->
-            ToolEntryCard(
-                modifier = Modifier.fillMaxWidth(),
-                tool = tool,
-                layout = layout,
-                onClick = { onToolClick(tool) },
-            )
-            if (index != tools.lastIndex) Spacer(modifier = Modifier.height(12.dp))
-        }
-        return
-    }
-
-    val columns = if (wide) 3 else 2
-    tools.chunked(columns).forEachIndexed { index, rowTools ->
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            rowTools.forEach { tool ->
+            tools.forEach { tool ->
                 ToolEntryCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     tool = tool,
                     layout = layout,
                     onClick = { onToolClick(tool) },
                 )
             }
-            repeat(columns - rowTools.size) { Spacer(modifier = Modifier.weight(1f)) }
         }
-        if (index != (tools.size - 1) / columns) Spacer(modifier = Modifier.height(12.dp))
+        return
+    }
+
+    val columns = if (wide) 3 else 2
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        tools.chunked(columns).forEach { rowTools ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                rowTools.forEach { tool ->
+                    ToolEntryCard(
+                        modifier = Modifier.weight(1f),
+                        tool = tool,
+                        layout = layout,
+                        onClick = { onToolClick(tool) },
+                    )
+                }
+                repeat(columns - rowTools.size) { Spacer(modifier = Modifier.weight(1f)) }
+            }
+        }
     }
 }

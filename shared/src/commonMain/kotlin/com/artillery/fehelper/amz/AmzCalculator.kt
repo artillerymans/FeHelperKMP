@@ -281,155 +281,154 @@ private fun CalculatorFields(
     onAddProduct: () -> Unit,
     onRemoveProduct: (Int) -> Unit,
 ) {
-    SectionCard(title = "运费", description = "按货物总体积计算") {
-        FieldPair(
-            wide = wide,
-            first = { modifier ->
-                NumberField(
-                    modifier = modifier,
-                    label = "运费单价",
-                    value = state.freightUnitPrice,
-                    suffix = "元/立方",
-                    error = state.errors["freightUnitPrice"],
-                    onValueChange = { onStateChange(state.copy(freightUnitPrice = it, errors = state.errors - "freightUnitPrice")) },
-                )
-            },
-            second = { modifier ->
-                NumberField(
-                    modifier = modifier,
-                    label = "货物体积",
-                    value = state.volume,
-                    suffix = "立方",
-                    error = state.errors["volume"],
-                    onValueChange = { onStateChange(state.copy(volume = it, errors = state.errors - "volume")) },
-                )
-            },
-        )
-    }
-    Spacer(modifier = Modifier.height(16.dp))
-
-    SectionCard(title = "税金", description = "报税比例和税率请填写百分数") {
-        FieldPair(
-            wide = wide,
-            first = { modifier ->
-                NumberField(
-                    modifier = modifier,
-                    label = "报税比例",
-                    value = state.declarationRate,
-                    suffix = "%",
-                    error = state.errors["declarationRate"],
-                    onValueChange = { onStateChange(state.copy(declarationRate = it, errors = state.errors - "declarationRate")) },
-                )
-            },
-            second = { modifier ->
-                NumberField(
-                    modifier = modifier,
-                    label = "税率",
-                    value = state.taxRate,
-                    suffix = "%",
-                    error = state.errors["taxRate"],
-                    onValueChange = { onStateChange(state.copy(taxRate = it, errors = state.errors - "taxRate")) },
-                )
-            },
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        NumberField(
-            label = "汇率",
-            value = state.exchangeRate,
-            suffix = "兑换比例",
-            error = state.errors["exchangeRate"],
-            onValueChange = { onStateChange(state.copy(exchangeRate = it, errors = state.errors - "exchangeRate")) },
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(text = "产品明细", style = LocalTextStyle.current.copy(color = Ink, fontWeight = FontWeight.SemiBold))
-                Text(text = "按亚马逊上架价格填写报关单价", style = MaterialTheme.typography.bodySmall.copy(color = MutedInk))
-            }
-            Text(
-                text = "添加产品",
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .clickable(role = Role.Button, onClick = onAddProduct)
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        state.products.forEachIndexed { index, product ->
-            ProductRow(
-                index = index,
-                product = product,
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        SectionCard(title = "运费", description = "按货物总体积计算") {
+            FieldPair(
                 wide = wide,
-                unitPriceError = state.errors["product-$index-unitPrice"],
-                quantityError = state.errors["product-$index-quantity"],
-                onChange = { updated ->
-                    onStateChange(
-                        state.copy(
-                            products = state.products.mapIndexed { productIndex, current ->
-                                if (productIndex == index) updated else current
-                            },
-                            errors = state.errors - "product-$index-unitPrice" - "product-$index-quantity",
-                        ),
+                first = { modifier ->
+                    NumberField(
+                        modifier = modifier,
+                        label = "运费单价",
+                        value = state.freightUnitPrice,
+                        suffix = "元/立方",
+                        error = state.errors["freightUnitPrice"],
+                        onValueChange = { onStateChange(state.copy(freightUnitPrice = it, errors = state.errors - "freightUnitPrice")) },
                     )
                 },
-                onRemove = { onRemoveProduct(index) },
-                canRemove = state.products.size > 1,
+                second = { modifier ->
+                    NumberField(
+                        modifier = modifier,
+                        label = "货物体积",
+                        value = state.volume,
+                        suffix = "立方",
+                        error = state.errors["volume"],
+                        onValueChange = { onStateChange(state.copy(volume = it, errors = state.errors - "volume")) },
+                    )
+                },
             )
-            if (index != state.products.lastIndex) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Border)
+        }
+        SectionCard(title = "税金", description = "报税比例和税率请填写百分数") {
+            FieldPair(
+                wide = wide,
+                first = { modifier ->
+                    NumberField(
+                        modifier = modifier,
+                        label = "报税比例",
+                        value = state.declarationRate,
+                        suffix = "%",
+                        error = state.errors["declarationRate"],
+                        onValueChange = { onStateChange(state.copy(declarationRate = it, errors = state.errors - "declarationRate")) },
+                    )
+                },
+                second = { modifier ->
+                    NumberField(
+                        modifier = modifier,
+                        label = "税率",
+                        value = state.taxRate,
+                        suffix = "%",
+                        error = state.errors["taxRate"],
+                        onValueChange = { onStateChange(state.copy(taxRate = it, errors = state.errors - "taxRate")) },
+                    )
+                },
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            NumberField(
+                label = "汇率",
+                value = state.exchangeRate,
+                suffix = "兑换比例",
+                error = state.errors["exchangeRate"],
+                onValueChange = { onStateChange(state.copy(exchangeRate = it, errors = state.errors - "exchangeRate")) },
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column {
+                    Text(text = "产品明细", style = LocalTextStyle.current.copy(color = Ink, fontWeight = FontWeight.SemiBold))
+                    Text(text = "按亚马逊上架价格填写报关单价", style = MaterialTheme.typography.bodySmall.copy(color = MutedInk))
+                }
+                Text(
+                    text = "添加产品",
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(role = Role.Button, onClick = onAddProduct)
+                        .padding(horizontal = 12.dp, vertical = 14.dp),
+                    style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            state.products.forEachIndexed { index, product ->
+                ProductRow(
+                    index = index,
+                    product = product,
+                    wide = wide,
+                    unitPriceError = state.errors["product-$index-unitPrice"],
+                    quantityError = state.errors["product-$index-quantity"],
+                    onChange = { updated ->
+                        onStateChange(
+                            state.copy(
+                                products = state.products.mapIndexed { productIndex, current ->
+                                    if (productIndex == index) updated else current
+                                },
+                                errors = state.errors - "product-$index-unitPrice" - "product-$index-quantity",
+                            ),
+                        )
+                    },
+                    onRemove = { onRemoveProduct(index) },
+                    canRemove = state.products.size > 1,
+                )
+                if (index != state.products.lastIndex) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Border)
+                }
             }
         }
-    }
-    Spacer(modifier = Modifier.height(16.dp))
-
-    SectionCard(title = "贴标费用", description = "小标按产品数量计算，大标按箱数计算") {
-        FieldPair(
-            wide = wide,
-            first = { modifier ->
-                NumberField(
-                    modifier = modifier,
-                    label = "小标单价",
-                    value = state.smallLabelPrice,
-                    suffix = "元/个",
-                    error = state.errors["smallLabelPrice"],
-                    onValueChange = { onStateChange(state.copy(smallLabelPrice = it, errors = state.errors - "smallLabelPrice")) },
-                )
-            },
-            second = { modifier ->
-                NumberField(
-                    modifier = modifier,
-                    label = "大标单价",
-                    value = state.largeLabelPrice,
-                    suffix = "元/箱",
-                    error = state.errors["largeLabelPrice"],
-                    onValueChange = { onStateChange(state.copy(largeLabelPrice = it, errors = state.errors - "largeLabelPrice")) },
-                )
-            },
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        NumberField(
-            label = "箱数",
-            value = state.boxCount,
-            suffix = "箱",
-            error = state.errors["boxCount"],
-            onValueChange = { onStateChange(state.copy(boxCount = it, errors = state.errors - "boxCount")) },
-        )
-    }
-    Spacer(modifier = Modifier.height(16.dp))
-
-    SectionCard(title = "优惠", description = "按货物体积抵扣，默认无优惠") {
-        NumberField(
-            label = "优惠单价",
-            value = state.discountUnitPrice,
-            suffix = "元/立方",
-            error = state.errors["discountUnitPrice"],
-            onValueChange = { onStateChange(state.copy(discountUnitPrice = it, errors = state.errors - "discountUnitPrice")) },
-        )
+        SectionCard(title = "贴标费用", description = "小标按产品数量计算，大标按箱数计算") {
+            FieldPair(
+                wide = wide,
+                first = { modifier ->
+                    NumberField(
+                        modifier = modifier,
+                        label = "小标单价",
+                        value = state.smallLabelPrice,
+                        suffix = "元/个",
+                        error = state.errors["smallLabelPrice"],
+                        onValueChange = { onStateChange(state.copy(smallLabelPrice = it, errors = state.errors - "smallLabelPrice")) },
+                    )
+                },
+                second = { modifier ->
+                    NumberField(
+                        modifier = modifier,
+                        label = "大标单价",
+                        value = state.largeLabelPrice,
+                        suffix = "元/箱",
+                        error = state.errors["largeLabelPrice"],
+                        onValueChange = { onStateChange(state.copy(largeLabelPrice = it, errors = state.errors - "largeLabelPrice")) },
+                    )
+                },
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            NumberField(
+                label = "箱数",
+                value = state.boxCount,
+                suffix = "箱",
+                error = state.errors["boxCount"],
+                onValueChange = { onStateChange(state.copy(boxCount = it, errors = state.errors - "boxCount")) },
+            )
+        }
+        SectionCard(title = "优惠", description = "按货物体积抵扣，默认无优惠") {
+            NumberField(
+                label = "优惠单价",
+                value = state.discountUnitPrice,
+                suffix = "元/立方",
+                error = state.errors["discountUnitPrice"],
+                onValueChange = { onStateChange(state.copy(discountUnitPrice = it, errors = state.errors - "discountUnitPrice")) },
+            )
+        }
     }
 }
 

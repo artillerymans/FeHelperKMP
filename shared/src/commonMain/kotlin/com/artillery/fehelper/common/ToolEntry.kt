@@ -76,11 +76,12 @@ internal fun ToolEntryCard(
 
 @Composable
 private fun ToolEntryText(modifier: Modifier = Modifier, tool: ToolDefinition) {
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Text(text = tool.category, style = MaterialTheme.typography.labelMedium.copy(color = MutedInk))
-        Spacer(modifier = Modifier.height(6.dp))
         Text(text = tool.title, style = MaterialTheme.typography.titleMedium.copy(color = Ink, fontWeight = FontWeight.Bold))
-        Spacer(modifier = Modifier.height(6.dp))
         Text(text = tool.description, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

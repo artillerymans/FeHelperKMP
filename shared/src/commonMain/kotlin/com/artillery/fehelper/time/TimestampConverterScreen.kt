@@ -392,30 +392,33 @@ private fun WorldClockCard(
         title = "世界时钟",
         description = "以同一时刻查看 GMT-12 至 GMT+12",
     ) {
-        clocks.firstOrNull { it.offsetHours == selectedOffset }?.let { selectedClock ->
-            Text(
-                text = "当前选择：${selectedClock.label} · ${selectedClock.localTime}",
-                style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-        val columns = if (wide) 2 else 1
-        clocks.chunked(columns).forEachIndexed { rowIndex, rowClocks ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                rowClocks.forEach { clock ->
-                    WorldClockItem(
-                        clock = clock,
-                        selected = clock.offsetHours == selectedOffset,
-                        onClick = { onSelect(clock.offsetHours) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                repeat(columns - rowClocks.size) { Spacer(modifier = Modifier.weight(1f)) }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            clocks.firstOrNull { it.offsetHours == selectedOffset }?.let { selectedClock ->
+                Text(
+                    text = "当前选择：${selectedClock.label} · ${selectedClock.localTime}",
+                    style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
+                )
             }
-            if (rowIndex != (clocks.size - 1) / columns) Spacer(modifier = Modifier.height(12.dp))
+            val columns = if (wide) 2 else 1
+            clocks.chunked(columns).forEach { rowClocks ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    rowClocks.forEach { clock ->
+                        WorldClockItem(
+                            clock = clock,
+                            selected = clock.offsetHours == selectedOffset,
+                            onClick = { onSelect(clock.offsetHours) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    repeat(columns - rowClocks.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            }
         }
     }
 }
