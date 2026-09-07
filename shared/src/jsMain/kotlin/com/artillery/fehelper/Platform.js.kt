@@ -12,3 +12,7 @@ class JsPlatform : Platform {
 }
 
 actual fun getPlatform(): Platform = JsPlatform()
+
+actual fun isDebugBuild(): Boolean = js(
+    "typeof process !== 'undefined' && process.env != null && process.env.NODE_ENV !== 'production'",
+)

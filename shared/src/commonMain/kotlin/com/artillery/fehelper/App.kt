@@ -21,11 +21,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,6 +44,7 @@ import com.artillery.fehelper.common.ToolEntryCard
 import com.artillery.fehelper.common.ToolLayout
 import com.artillery.fehelper.json.JsonFormatterScreen
 import com.artillery.fehelper.time.TimestampConverterScreen
+import kotlinx.coroutines.flow.collect
 
 private const val AmzToolId = "amz-water-ticket"
 private const val JsonFormatterToolId = "json-formatter"
@@ -80,6 +83,13 @@ private enum class Destination {
 fun App() {
     FeHelperTheme {
         val backStack = remember { mutableStateListOf(Destination.HOME) }
+        if (isDebugBuild()) {
+            LaunchedEffect(key1 = Unit) {
+                snapshotFlow(block = { backStack.toList() }).collect { stack ->
+                    println("[Navigation] currentPage=${stack.lastOrNull()}, backStack=$stack")
+                }
+            }
+        }
         val navigateBack = {
             if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
         }

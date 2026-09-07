@@ -390,7 +390,7 @@ private fun WorldClockCard(
 ) {
     SectionCard(
         title = "世界时钟",
-        description = "以同一时刻查看 GMT-12 至 GMT+12",
+        description = "代表城市按标准时区归类，夏令时期间实际偏移可能变化",
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -398,7 +398,7 @@ private fun WorldClockCard(
         ) {
             clocks.firstOrNull { it.offsetHours == selectedOffset }?.let { selectedClock ->
                 Text(
-                    text = "当前选择：${selectedClock.label} · ${selectedClock.localTime}",
+                    text = "当前选择：${selectedClock.label} · ${selectedClock.location} · ${selectedClock.localTime}",
                     style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
                 )
             }
@@ -438,7 +438,10 @@ private fun WorldClockItem(
         border = BorderStroke(1.dp, if (selected) BrandBlue else Border),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = clock.label, style = MaterialTheme.typography.labelLarge.copy(color = if (selected) BrandBlue else Ink))
+            Text(
+                text = "${clock.label} · ${clock.location}",
+                style = MaterialTheme.typography.labelLarge.copy(color = if (selected) BrandBlue else Ink),
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = clock.localTime, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk))
         }

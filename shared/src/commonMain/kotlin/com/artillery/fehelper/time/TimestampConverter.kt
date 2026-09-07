@@ -32,10 +32,38 @@ internal data class TimeSnapshot(
 internal data class WorldClock(
     val offsetHours: Int,
     val label: String,
+    val location: String,
     val localTime: String,
 )
 
 private val ShanghaiTimeZone = TimeZone.of("Asia/Shanghai")
+private val WorldClockLocations = listOf(
+    "贝克岛",
+    "帕果帕果",
+    "檀香山",
+    "安克雷奇",
+    "洛杉矶",
+    "丹佛",
+    "芝加哥",
+    "纽约",
+    "圣地亚哥",
+    "圣保罗",
+    "费尔南多-迪诺罗尼亚",
+    "亚速尔群岛",
+    "伦敦",
+    "巴黎",
+    "开罗",
+    "莫斯科",
+    "迪拜",
+    "卡拉奇",
+    "达卡",
+    "曼谷",
+    "北京",
+    "东京",
+    "悉尼",
+    "努美阿",
+    "奥克兰",
+)
 private val LocalTimePattern = Regex(
     "(\\d{4})(?:-(\\d{1,2})(?:-(\\d{1,2})(?:[ T]+(\\d{1,2})(?::(\\d{1,2})(?::(\\d{1,2}))?)?)?)?)?",
 )
@@ -92,6 +120,7 @@ internal fun worldClocks(now: Instant = Clock.System.now()): List<WorldClock> =
         WorldClock(
             offsetHours = offsetHours,
             label = "GMT$sign${abs(offsetHours)}",
+            location = WorldClockLocations[offsetHours + 12],
             localTime = now.toLocalDateTime(UtcOffset(hours = offsetHours).asTimeZone()).formatForDisplay(),
         )
     }

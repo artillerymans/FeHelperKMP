@@ -5,3 +5,5 @@ class JVMPlatform : Platform {
 }
 
 actual fun getPlatform(): Platform = JVMPlatform()
+
+actual fun isDebugBuild(): Boolean = System.getProperty("fehelper.debug").toBoolean()
