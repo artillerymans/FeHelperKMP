@@ -45,12 +45,14 @@ import com.artillery.fehelper.common.ToolLayout
 import com.artillery.fehelper.json.JsonFormatterScreen
 import com.artillery.fehelper.time.TimestampConverterScreen
 import com.artillery.fehelper.totp.TotpScreen
+import com.artillery.fehelper.websocket.WebSocketToolScreen
 import kotlinx.coroutines.flow.collect
 
 private const val AmzToolId = "amz-water-ticket"
 private const val JsonFormatterToolId = "json-formatter"
 private const val TimestampConverterToolId = "timestamp-converter"
 private const val TotpToolId = "totp"
+private const val WebSocketToolId = "websocket-tool"
 
 private val tools = listOf(
     ToolDefinition(
@@ -77,6 +79,12 @@ private val tools = listOf(
         description = "本地生成 TOTP 验证码，支持 Base32 密钥和 otpauth URI",
         category = "安全工具",
     ),
+    ToolDefinition(
+        id = WebSocketToolId,
+        title = "WebSocket 工具",
+        description = "测试 WebSocket 连接、消息收发并分析通信结果",
+        category = "开发工具",
+    ),
 )
 
 private enum class Destination {
@@ -85,6 +93,7 @@ private enum class Destination {
     JSON_FORMATTER,
     TIMESTAMP_CONVERTER,
     TOTP,
+    WEBSOCKET_TOOL,
 }
 
 @Composable
@@ -115,6 +124,7 @@ fun App() {
                                 JsonFormatterToolId -> backStack.add(Destination.JSON_FORMATTER)
                                 TimestampConverterToolId -> backStack.add(Destination.TIMESTAMP_CONVERTER)
                                 TotpToolId -> backStack.add(Destination.TOTP)
+                                WebSocketToolId -> backStack.add(Destination.WEBSOCKET_TOOL)
                             }
                         },
                     )
@@ -130,6 +140,12 @@ fun App() {
                 }
                 entry(Destination.TOTP) {
                     TotpScreen(onBack = navigateBack)
+                }
+                entry(Destination.WEBSOCKET_TOOL) {
+                    WebSocketToolScreen(
+                        modifier = Modifier,
+                        onBack = navigateBack,
+                    )
                 }
             },
         )

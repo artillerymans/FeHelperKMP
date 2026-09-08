@@ -37,7 +37,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
-        jsMain.dependencies {
+        webMain.dependencies {
             implementation(libs.wrappers.browser)
         }
     }

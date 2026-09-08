@@ -25,12 +25,13 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun SectionCard(
+    modifier: Modifier = Modifier,
     title: String,
     description: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Border),

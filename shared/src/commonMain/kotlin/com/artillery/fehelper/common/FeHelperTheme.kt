@@ -15,6 +15,8 @@ internal val Ink = Color(0xFF000018)
 internal val MutedInk = Color(0xFF516179)
 internal val PageBackground = Color(0xFFF5F7FB)
 internal val Border = Color(0xFFD9E1EE)
+internal val SuccessGreen = Color(0xFF137A4D)
+internal val ErrorRed = Color(0xFFB42318)
 
 private val FeHelperColorScheme = lightColorScheme(
     primary = BrandBlue,
