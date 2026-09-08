@@ -39,8 +39,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.artillery.fehelper.common.Border
 import com.artillery.fehelper.common.BrandBlue
 import com.artillery.fehelper.common.Ink
@@ -163,13 +161,9 @@ private class AmzCalculatorViewModel : StateViewModel<CalculatorState>(initialSt
     }
 }
 
-internal val amzCalculatorViewModelFactory = viewModelFactory {
-    initializer { AmzCalculatorViewModel() }
-}
-
 @Composable
 internal fun AmzCalculatorScreen(onBack: () -> Unit) {
-    val viewModel: AmzCalculatorViewModel = viewModel<AmzCalculatorViewModel>()
+    val viewModel: AmzCalculatorViewModel = viewModel(initializer = { AmzCalculatorViewModel() })
     val state by viewModel.collectAsState()
 
     BoxWithConstraints(

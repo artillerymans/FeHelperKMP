@@ -116,44 +116,37 @@ class CounterViewModel(
 ```kotlin
 commonMain.dependencies {
     implementation(libs.androidx.lifecycle.viewmodelCompose)
+    implementation(libs.androidx.lifecycle.viewmodelNavigation3)
 }
 ```
 
-非 Android 平台不能依赖无参构造反射。要让页面保持简洁的 `viewModel<CounterViewModel>()`，在页面入口为 `ViewModelStoreOwner` 提供 factory：
+使用 Navigation3 时，在 `NavDisplay` 上统一添加官方 ViewModel decorator。它会为每个页面提供独立的 `LocalViewModelStoreOwner`，并在页面出栈时清理 ViewModel：
+
+```kotlin
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+
+NavDisplay(
+    backStack = backStack,
+    entryDecorators = listOf(
+        rememberSaveableStateHolderNavEntryDecorator(),
+        rememberViewModelStoreNavEntryDecorator(),
+    ),
+    entryProvider = entryProvider,
+)
+```
+
+页面直接通过 initializer 创建并观察 ViewModel：
 
 ```kotlin
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
-import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-
-private val counterViewModelFactory = viewModelFactory {
-    initializer { CounterViewModel() }
-}
-
-@Composable
-fun CounterEntry() {
-    val viewModelStoreOwner = rememberViewModelStoreOwner(
-        parent = null,
-        savedStateRegistryOwner = null,
-        defaultFactory = counterViewModelFactory,
-    )
-    CompositionLocalProvider(
-        LocalViewModelStoreOwner provides viewModelStoreOwner,
-        content = {
-            CounterScreen()
-        },
-    )
-}
 
 @Composable
 private fun CounterScreen() {
-    val viewModel: CounterViewModel = viewModel<CounterViewModel>()
+    val viewModel: CounterViewModel = viewModel(initializer = { CounterViewModel() })
     val state by viewModel.collectAsState()
     val count = viewModel.collectAsState(selector = CounterState::count)
 
@@ -162,7 +155,7 @@ private fun CounterScreen() {
 }
 ```
 
-页面只负责调用 `viewModel()`。factory 和 owner 放在页面入口；同一个 owner 会复用 ViewModel，并在入口离开组合时触发 `StateViewModel.onCleared()`。不要使用 `remember { CounterViewModel() }` 手动创建，也不要依赖非 Android 平台的无参反射 factory。
+`viewModel()` 会复用当前页面 `LocalViewModelStoreOwner` 中的实例，并在页面出栈时触发 `StateViewModel.onCleared()`。非 Android 平台不能依赖无参构造反射，因此应传入 initializer；不要使用 `remember { CounterViewModel() }` 手动创建，也不要在每个页面重复创建 factory 或 owner。
 
 ### 4. 读取排队后的状态
 
