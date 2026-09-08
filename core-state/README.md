@@ -2,7 +2,7 @@
 
 `core-state` 是一个面向 Kotlin Multiplatform 的轻量 Compose UI 状态管理模块，包名为 `com.artillery.state`。
 
-模块采用 MVI 风格：ViewModel 持有唯一状态，UI 通过状态流观察，状态修改通过 reducer 生成新状态。实现只依赖 Compose Runtime 和 Kotlin Coroutines，可用于 JVM、JS、WasmJs 目标，也可以作为其他 KMP 项目的基础模块复用。
+模块采用 MVI 风格：ViewModel 持有唯一状态，UI 通过状态流观察，状态修改通过 reducer 生成新状态。实现依赖 Lifecycle ViewModel、Compose Runtime 和 Kotlin Coroutines，可用于 JVM、JS、WasmJs 目标，也可以作为其他 KMP 项目的基础模块复用。
 
 ## 能力范围
 
@@ -11,9 +11,9 @@
 - 使用 `withState` 在队列中读取已处理的最新状态。
 - 使用 Compose `collectAsState` 订阅完整状态或状态片段。
 - 支持属性引用、嵌套属性和派生属性选择器。
-- 通过 `clear()` 停止队列并释放协程资源。
+- 继承 Lifecycle `ViewModel`，销毁时自动停止队列并释放协程资源。
 
-模块当前不负责 ViewModel 生命周期自动绑定、持久化、事件总线、网络请求封装或副作用管理；这些能力应由宿主项目按平台和业务需要补充。
+模块当前不负责状态持久化、事件总线、网络请求封装或副作用管理；这些能力应由宿主项目按平台和业务需要补充。
 
 ## 引入模块
 
@@ -27,6 +27,7 @@ commonMain.dependencies {
 
 模块自身已经通过 `api` 暴露以下依赖：
 
+- `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel`
 - `org.jetbrains.compose.runtime:runtime`
 - `org.jetbrains.kotlinx:kotlinx-coroutines-core`
 
@@ -40,6 +41,8 @@ commonMain.dependencies {
 open class StateViewModel<S : Any>(
     initialState: S,
     coroutineContext: CoroutineContext = Dispatchers.Default,
+) : ViewModel(
+    viewModelScope = CoroutineScope(context = coroutineContext + Job()),
 )
 ```
 
@@ -48,7 +51,6 @@ open class StateViewModel<S : Any>(
 | `state: StateFlow<S>` | 暴露当前状态流，只读访问。首次订阅会得到 `initialState`。 |
 | `protected setState(reducer: S.() -> S)` | 将 reducer 放入异步 FIFO 队列，调用方不会等待 reducer 执行。 |
 | `protected withState(action: (S) -> Unit)` | 将读取动作放入同一队列，保证它执行前先处理已经排队的 reducer。 |
-| `clear()` | 关闭队列、取消内部协程。清理后再次调用 `setState` 或 `withState` 会抛出 `IllegalStateException`。 |
 | `coroutineContext` | 配置 reducer 队列使用的协程上下文；默认使用 `Dispatchers.Default`。 |
 
 ### Compose `collectAsState`
@@ -107,26 +109,60 @@ class CounterViewModel(
 
 每次 reducer 都应基于当前状态返回新对象，不要在状态对象内部原地修改可变集合或字段。
 
-### 3. 在 Compose 中观察状态
+### 3. 在 Compose 中创建并观察 ViewModel
+
+宿主模块需要引入 Lifecycle 的 Compose 集成：
 
 ```kotlin
-@Composable
-fun CounterScreen(viewModel: CounterViewModel) {
-    val state by viewModel.collectAsState()
-    val count1 = viewModel.collectAsState(CounterState::count)
-    val count2 = viewModel.collectAsState { it.count }
-
-    Text(text = "Count is ${state.count}")
-    Text(text = "Count is $count1")
-    Text(text = "Count is $count2")
+commonMain.dependencies {
+    implementation(libs.androidx.lifecycle.viewmodelCompose)
 }
 ```
 
-使用 `by` 解包完整状态时，需要在调用方导入：
+非 Android 平台不能依赖无参构造反射。要让页面保持简洁的 `viewModel<CounterViewModel>()`，在页面入口为 `ViewModelStoreOwner` 提供 factory：
 
 ```kotlin
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+
+private val counterViewModelFactory = viewModelFactory {
+    initializer { CounterViewModel() }
+}
+
+@Composable
+fun CounterEntry() {
+    val viewModelStoreOwner = rememberViewModelStoreOwner(
+        parent = null,
+        savedStateRegistryOwner = null,
+        defaultFactory = counterViewModelFactory,
+    )
+    CompositionLocalProvider(
+        LocalViewModelStoreOwner provides viewModelStoreOwner,
+        content = {
+            CounterScreen()
+        },
+    )
+}
+
+@Composable
+private fun CounterScreen() {
+    val viewModel: CounterViewModel = viewModel<CounterViewModel>()
+    val state by viewModel.collectAsState()
+    val count = viewModel.collectAsState(selector = CounterState::count)
+
+    Text(text = "Count is ${state.count}")
+    Text(text = "Count is $count")
+}
 ```
+
+页面只负责调用 `viewModel()`。factory 和 owner 放在页面入口；同一个 owner 会复用 ViewModel，并在入口离开组合时触发 `StateViewModel.onCleared()`。不要使用 `remember { CounterViewModel() }` 手动创建，也不要依赖非 Android 平台的无参反射 factory。
 
 ### 4. 读取排队后的状态
 
@@ -151,19 +187,14 @@ fun setAndRetrieveState() {
 
 ## 生命周期
 
-`StateViewModel` 不依赖 Android `ViewModel` 或 Lifecycle。宿主需要在不再使用实例时主动调用：
-
-```kotlin
-viewModel.clear()
-```
-
-如果宿主已有生命周期容器，应在容器销毁回调中调用 `clear()`。
+`StateViewModel` 继承 `androidx.lifecycle.ViewModel`。通过 `ViewModelProvider` 或 Compose `viewModel()` 创建后，reducer 协程和队列会随 `ViewModelStoreOwner` 自动清理。
 
 ## 目录结构
 
 ```text
 core-state/
 ├── build.gradle.kts
+├── README.md
 └── src/commonMain/kotlin/com/artillery/state/
     ├── ComposeState.kt
     └── StateViewModel.kt

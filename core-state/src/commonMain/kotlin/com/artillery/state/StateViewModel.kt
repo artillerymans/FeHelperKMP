@@ -1,10 +1,11 @@
 package com.artillery.state
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,16 +18,17 @@ import kotlin.coroutines.CoroutineContext
 open class StateViewModel<S : Any>(
     initialState: S,
     coroutineContext: CoroutineContext = Dispatchers.Default,
+) : ViewModel(
+    viewModelScope = CoroutineScope(context = coroutineContext + Job()),
 ) {
     // ponytail: unbounded FIFO keeps setState non-blocking; add backpressure if producers become untrusted.
     private val actions = Channel<(S) -> S>(capacity = Channel.UNLIMITED)
-    private val scope = CoroutineScope(context = coroutineContext + Job())
     private val mutableState = MutableStateFlow(value = initialState)
 
     val state: StateFlow<S> = mutableState.asStateFlow()
 
     init {
-        scope.launch(block = {
+        viewModelScope.launch(block = {
             for (action in actions) {
                 mutableState.value = action(mutableState.value)
             }
@@ -54,9 +56,7 @@ open class StateViewModel<S : Any>(
         }
     }
 
-    /** Stops processing queued reducers and releases coroutine resources. */
-    fun clear() {
+    override fun onCleared() {
         actions.close()
-        scope.cancel()
     }
 }

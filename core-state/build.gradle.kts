@@ -20,6 +20,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(libs.androidx.lifecycle.viewmodel)
             api(libs.compose.runtime)
             api(libs.kotlinx.coroutines.core)
         }

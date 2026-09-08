@@ -5,7 +5,6 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
-import kotlinx.coroutines.flow.collect
 
 @Composable
 fun <S : Any> StateViewModel<S>.collectAsState(): State<S> =
@@ -18,6 +17,6 @@ fun <S : Any, T> StateViewModel<S>.collectAsState(selector: (S) -> T): T {
         initialValue = currentSelector.value(state.value),
         key1 = this,
     ) {
-        state.collect(action = { value = currentSelector.value(it) })
+        state.collect { selectedState -> value = currentSelector.value(selectedState) }
     }.value
 }

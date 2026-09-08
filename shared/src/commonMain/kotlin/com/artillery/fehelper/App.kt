@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -32,9 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.artillery.fehelper.amz.AmzCalculatorScreen
+import com.artillery.fehelper.amz.amzCalculatorViewModelFactory
 import com.artillery.fehelper.common.FeHelperTheme
 import com.artillery.fehelper.common.Ink
 import com.artillery.fehelper.common.MutedInk
@@ -130,7 +134,17 @@ fun App() {
                     )
                 }
                 entry(Destination.AMZ_CALCULATOR) {
-                    AmzCalculatorScreen(onBack = navigateBack)
+                    val viewModelStoreOwner = rememberViewModelStoreOwner(
+                        parent = null,
+                        savedStateRegistryOwner = null,
+                        defaultFactory = amzCalculatorViewModelFactory,
+                    )
+                    CompositionLocalProvider(
+                        LocalViewModelStoreOwner provides viewModelStoreOwner,
+                        content = {
+                            AmzCalculatorScreen(onBack = navigateBack)
+                        },
+                    )
                 }
                 entry(Destination.JSON_FORMATTER) {
                     JsonFormatterScreen(onBack = navigateBack)

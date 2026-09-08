@@ -21,6 +21,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(project(":core-state"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
