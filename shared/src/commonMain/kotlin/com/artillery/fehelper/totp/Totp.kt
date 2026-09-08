@@ -1,5 +1,11 @@
 package com.artillery.fehelper.totp
 
+import kotlin.time.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
+import kotlinx.datetime.toLocalDateTime
+
 internal enum class TotpDigits(val value: Int, val label: String) {
     SIX(6, "6 位"),
     EIGHT(8, "8 位"),
@@ -97,11 +103,18 @@ internal fun totpCode(
     return (binary % modulus).toString().padStart(digits.value, '0')
 }
 
+internal fun formatTotpLocalTime(instant: Instant, timeZone: TimeZone): String =
+    instant.toLocalDateTime(timeZone).formatTotpTime()
+
 private fun setupFromSecret(secret: String): TotpParseResult {
     val normalized = secret.filterNot { it == '-' || it.isWhitespace() }.uppercase()
     val decoded = decodeBase32(normalized) ?: return TotpParseResult(error = "请输入有效的 Base32 密钥")
     return TotpParseResult(setup = TotpSetup(secret = normalized, secretBytes = decoded))
 }
+
+private fun LocalDateTime.formatTotpTime(): String =
+    "${year.toString().padStart(4, '0')}-${month.number.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')} " +
+        "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}"
 
 private fun decodeBase32(value: String): ByteArray? {
     if (value.isEmpty()) return null
