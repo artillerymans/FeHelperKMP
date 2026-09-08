@@ -2,13 +2,16 @@ package com.artillery.fehelper.totp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
@@ -32,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -124,24 +128,6 @@ internal fun TotpScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk),
                     )
                     SectionCard(
-                        title = "当前时间",
-                        description = "验证码按设备当前时间计算",
-                    ) {
-                        Text(
-                            text = formatTotpLocalTime(instant = current, timeZone = timeZone),
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                color = Ink,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                        )
-                        Text(
-                            text = "时区：${timeZone.id}",
-                            modifier = Modifier.padding(top = 8.dp),
-                            style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk),
-                        )
-                    }
-                    SectionCard(
                         title = "导入密钥",
                         description = "支持直接输入 Base32 密钥，或粘贴 otpauth:// URI",
                     ) {
@@ -174,6 +160,7 @@ internal fun TotpScreen(onBack: () -> Unit) {
                             )
                         }
                     }
+
                     SectionCard(
                         title = "验证码设置",
                         description = "按服务端配置选择位数和刷新周期",
@@ -235,6 +222,9 @@ internal fun TotpScreen(onBack: () -> Unit) {
                                 color = BrandBlue,
                                 trackColor = Border,
                             )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
                             Row(
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
@@ -274,6 +264,26 @@ internal fun TotpScreen(onBack: () -> Unit) {
                             }
                         }
                     }
+
+                    SectionCard(
+                        title = "当前时间",
+                        description = "验证码按设备当前时间计算",
+                    ) {
+                        Text(
+                            text = formatTotpLocalTime(instant = current, timeZone = timeZone),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                color = Ink,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                        )
+                        Text(
+                            text = "时区：${timeZone.id}",
+                            modifier = Modifier.padding(top = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk),
+                        )
+                    }
+
                     SectionCard(
                         title = "使用说明",
                         description = "按服务端提供的信息完成配置",
