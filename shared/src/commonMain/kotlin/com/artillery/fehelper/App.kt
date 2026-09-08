@@ -44,11 +44,13 @@ import com.artillery.fehelper.common.ToolEntryCard
 import com.artillery.fehelper.common.ToolLayout
 import com.artillery.fehelper.json.JsonFormatterScreen
 import com.artillery.fehelper.time.TimestampConverterScreen
+import com.artillery.fehelper.totp.TotpScreen
 import kotlinx.coroutines.flow.collect
 
 private const val AmzToolId = "amz-water-ticket"
 private const val JsonFormatterToolId = "json-formatter"
 private const val TimestampConverterToolId = "timestamp-converter"
+private const val TotpToolId = "totp"
 
 private val tools = listOf(
     ToolDefinition(
@@ -69,6 +71,12 @@ private val tools = listOf(
         description = "本地时间与 Unix 时间戳互转，支持秒、毫秒和世界时钟",
         category = "开发工具",
     ),
+    ToolDefinition(
+        id = TotpToolId,
+        title = "2FA 动态口令",
+        description = "本地生成 TOTP 验证码，支持 Base32 密钥和 otpauth URI",
+        category = "安全工具",
+    ),
 )
 
 private enum class Destination {
@@ -76,6 +84,7 @@ private enum class Destination {
     AMZ_CALCULATOR,
     JSON_FORMATTER,
     TIMESTAMP_CONVERTER,
+    TOTP,
 }
 
 @Composable
@@ -105,6 +114,7 @@ fun App() {
                                 AmzToolId -> backStack.add(Destination.AMZ_CALCULATOR)
                                 JsonFormatterToolId -> backStack.add(Destination.JSON_FORMATTER)
                                 TimestampConverterToolId -> backStack.add(Destination.TIMESTAMP_CONVERTER)
+                                TotpToolId -> backStack.add(Destination.TOTP)
                             }
                         },
                     )
@@ -117,6 +127,9 @@ fun App() {
                 }
                 entry(Destination.TIMESTAMP_CONVERTER) {
                     TimestampConverterScreen(onBack = navigateBack)
+                }
+                entry(Destination.TOTP) {
+                    TotpScreen(onBack = navigateBack)
                 }
             },
         )
