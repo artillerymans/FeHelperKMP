@@ -164,7 +164,6 @@ private class AmzCalculatorViewModel : StateViewModel<CalculatorState>(initialSt
 @Composable
 internal fun AmzCalculatorScreen(onBack: () -> Unit) {
     val viewModel: AmzCalculatorViewModel = viewModel(initializer = { AmzCalculatorViewModel() })
-    val state by viewModel.collectAsState()
 
     BoxWithConstraints(
         modifier = Modifier
@@ -217,6 +216,7 @@ internal fun AmzCalculatorScreen(onBack: () -> Unit) {
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    val state by viewModel.collectAsState()
                     if (wide) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -245,7 +245,8 @@ internal fun AmzCalculatorScreen(onBack: () -> Unit) {
                             onRemoveProduct = viewModel::removeProduct,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        ResultColumn(result = state.result)
+                        val result by viewModel.collectAsState(CalculatorState::result)
+                        ResultColumn(result = result)
                     }
                 }
             }

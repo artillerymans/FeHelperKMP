@@ -64,11 +64,11 @@ fun <S : Any> StateViewModel<S>.collectAsState(): State<S>
 @Composable
 fun <S : Any, T> StateViewModel<S>.collectAsState(
     selector: (S) -> T,
-): T
+): State<T>
 ```
 
 - 无参数重载返回 Compose 的 `State<S>`，适合观察整个状态。
-- 选择器重载直接返回 `T`，适合只观察页面需要的属性。
+- 选择器重载返回 Compose 的 `State<T>`，适合通过 `by` 只观察页面需要的属性。
 - 选择器结果使用 Compose 状态的默认相等性策略，结果未变化时不会触发额外重组。
 
 ## 使用方法
@@ -148,7 +148,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 private fun CounterScreen() {
     val viewModel: CounterViewModel = viewModel(initializer = { CounterViewModel() })
     val state by viewModel.collectAsState()
-    val count = viewModel.collectAsState(selector = CounterState::count)
+    val count by viewModel.collectAsState(selector = CounterState::count)
 
     Text(text = "Count is ${state.count}")
     Text(text = "Count is $count")

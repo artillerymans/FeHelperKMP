@@ -11,12 +11,12 @@ fun <S : Any> StateViewModel<S>.collectAsState(): State<S> =
     state.collectAsState()
 
 @Composable
-fun <S : Any, T> StateViewModel<S>.collectAsState(selector: (S) -> T): T {
+fun <S : Any, T> StateViewModel<S>.collectAsState(selector: (S) -> T): State<T> {
     val currentSelector = rememberUpdatedState(newValue = selector)
     return produceState(
         initialValue = currentSelector.value(state.value),
         key1 = this,
     ) {
         state.collect { selectedState -> value = currentSelector.value(selectedState) }
-    }.value
+    }
 }
