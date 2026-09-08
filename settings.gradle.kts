@@ -32,5 +32,6 @@ plugins {
 }
 
 include(":desktopApp")
+include(":core-state")
 include(":shared")
 include(":webApp")
