@@ -118,6 +118,23 @@ private data class CalculatorState(
         )
 }
 
+private sealed interface CalculatorEvent {
+    data class FreightUnitPriceChanged(val value: String) : CalculatorEvent
+    data class VolumeChanged(val value: String) : CalculatorEvent
+    data class DeclarationRateChanged(val value: String) : CalculatorEvent
+    data class TaxRateChanged(val value: String) : CalculatorEvent
+    data class ExchangeRateChanged(val value: String) : CalculatorEvent
+    data class ProductUnitPriceChanged(val index: Int, val value: String) : CalculatorEvent
+    data class ProductQuantityChanged(val index: Int, val value: String) : CalculatorEvent
+    data class RemoveProduct(val index: Int) : CalculatorEvent
+    data class SmallLabelPriceChanged(val value: String) : CalculatorEvent
+    data class LargeLabelPriceChanged(val value: String) : CalculatorEvent
+    data class BoxCountChanged(val value: String) : CalculatorEvent
+    data class DiscountUnitPriceChanged(val value: String) : CalculatorEvent
+    object AddProduct : CalculatorEvent
+    object Confirm : CalculatorEvent
+}
+
 private data class ProductValues(
     val unitPrice: Double,
     val quantity: Double,
@@ -176,9 +193,82 @@ private fun parseNumber(value: String, label: String, integer: Boolean, maximum:
 }
 
 private class AmzCalculatorViewModel : StateViewModel<CalculatorState>(initialState = CalculatorState()) {
-    fun updateState(reducer: CalculatorState.() -> CalculatorState) = setState(reducer)
+    fun onEvent(event: CalculatorEvent) {
+        when (event) {
+            is CalculatorEvent.FreightUnitPriceChanged -> updateField(errorKey = "freightUnitPrice") {
+                copy(freightUnitPrice = event.value)
+            }
+            is CalculatorEvent.VolumeChanged -> updateField(errorKey = "volume") {
+                copy(volume = event.value)
+            }
+            is CalculatorEvent.DeclarationRateChanged -> updateField(errorKey = "declarationRate") {
+                copy(declarationRate = event.value)
+            }
+            is CalculatorEvent.TaxRateChanged -> updateField(errorKey = "taxRate") {
+                copy(taxRate = event.value)
+            }
+            is CalculatorEvent.ExchangeRateChanged -> updateField(errorKey = "exchangeRate") {
+                copy(exchangeRate = event.value)
+            }
+            is CalculatorEvent.ProductUnitPriceChanged -> updateProduct(
+                index = event.index,
+            ) {
+                copy(unitPrice = event.value)
+            }
+            is CalculatorEvent.ProductQuantityChanged -> updateProduct(
+                index = event.index,
+            ) {
+                copy(quantity = event.value)
+            }
+            is CalculatorEvent.RemoveProduct -> removeProduct(index = event.index)
+            is CalculatorEvent.SmallLabelPriceChanged -> updateField(errorKey = "smallLabelPrice") {
+                copy(smallLabelPrice = event.value)
+            }
+            is CalculatorEvent.LargeLabelPriceChanged -> updateField(errorKey = "largeLabelPrice") {
+                copy(largeLabelPrice = event.value)
+            }
+            is CalculatorEvent.BoxCountChanged -> updateField(errorKey = "boxCount") {
+                copy(boxCount = event.value)
+            }
+            is CalculatorEvent.DiscountUnitPriceChanged -> updateField(errorKey = "discountUnitPrice") {
+                copy(discountUnitPrice = event.value)
+            }
+            CalculatorEvent.AddProduct -> addProduct()
+            CalculatorEvent.Confirm -> confirm()
+        }
+    }
 
-    fun addProduct() {
+    private fun updateField(
+        errorKey: String,
+        reducer: CalculatorState.() -> CalculatorState,
+    ) {
+        setState {
+            val updatedState = reducer()
+            updatedState.copy(
+                errors = updatedState.errors - errorKey,
+                result = null,
+            )
+        }
+    }
+
+    private fun updateProduct(
+        index: Int,
+        reducer: ProductInput.() -> ProductInput,
+    ) {
+        setState {
+            copy(
+                products = products.mapIndexed { productIndex, product ->
+                    if (productIndex == index) product.reducer() else product
+                },
+                errors = errors -
+                    "product-$index-unitPrice" -
+                    "product-$index-quantity",
+                result = null,
+            )
+        }
+    }
+
+    private fun addProduct() {
         setState {
             copy(
                 products = products + ProductInput(unitPrice = "0", quantity = "0"),
@@ -187,7 +277,7 @@ private class AmzCalculatorViewModel : StateViewModel<CalculatorState>(initialSt
         }
     }
 
-    fun removeProduct(index: Int) {
+    private fun removeProduct(index: Int) {
         setState {
             copy(
                 products = products.filterIndexed { productIndex, _ -> productIndex != index },
@@ -197,7 +287,7 @@ private class AmzCalculatorViewModel : StateViewModel<CalculatorState>(initialSt
         }
     }
 
-    fun confirm() {
+    private fun confirm() {
         setState {
             var errors = emptyMap<String, String>()
             val result = validateAndCalculate(state = this) { errors = it }
@@ -240,7 +330,7 @@ internal fun AmzCalculatorScreen(onBack: () -> Unit) {
                     ) {
                         ConfirmButton(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = viewModel::confirm,
+                            onClick = { viewModel.onEvent(event = CalculatorEvent.Confirm) },
                         )
                     }
                 }
@@ -272,9 +362,7 @@ internal fun AmzCalculatorScreen(onBack: () -> Unit) {
                                 CalculatorFields(
                                     state = formState,
                                     wide = wide,
-                                    onStateChange = viewModel::updateState,
-                                    onAddProduct = viewModel::addProduct,
-                                    onRemoveProduct = viewModel::removeProduct,
+                                    onEvent = viewModel::onEvent,
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
@@ -286,9 +374,7 @@ internal fun AmzCalculatorScreen(onBack: () -> Unit) {
                         CalculatorFields(
                             state = formState,
                             wide = wide,
-                            onStateChange = viewModel::updateState,
-                            onAddProduct = viewModel::addProduct,
-                            onRemoveProduct = viewModel::removeProduct,
+                            onEvent = viewModel::onEvent,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         val result by viewModel.collectAsState(CalculatorState::result)
@@ -336,9 +422,7 @@ private fun CalculationRules() {
 private fun CalculatorFields(
     state: CalculatorFormState,
     wide: Boolean,
-    onStateChange: (CalculatorState.() -> CalculatorState) -> Unit,
-    onAddProduct: () -> Unit,
-    onRemoveProduct: (Int) -> Unit,
+    onEvent: (CalculatorEvent) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -354,7 +438,7 @@ private fun CalculatorFields(
                         value = state.freightUnitPrice,
                         suffix = "元/立方",
                         error = state.errors["freightUnitPrice"],
-                        onValueChange = { value -> onStateChange { copy(freightUnitPrice = value, errors = errors - "freightUnitPrice", result = null) } },
+                        onValueChange = { value -> onEvent(CalculatorEvent.FreightUnitPriceChanged(value = value)) },
                     )
                 },
                 second = { modifier ->
@@ -364,7 +448,7 @@ private fun CalculatorFields(
                         value = state.volume,
                         suffix = "立方",
                         error = state.errors["volume"],
-                        onValueChange = { value -> onStateChange { copy(volume = value, errors = errors - "volume", result = null) } },
+                        onValueChange = { value -> onEvent(CalculatorEvent.VolumeChanged(value = value)) },
                     )
                 },
             )
@@ -379,7 +463,7 @@ private fun CalculatorFields(
                         value = state.declarationRate,
                         suffix = "%",
                         error = state.errors["declarationRate"],
-                        onValueChange = { value -> onStateChange { copy(declarationRate = value, errors = errors - "declarationRate", result = null) } },
+                        onValueChange = { value -> onEvent(CalculatorEvent.DeclarationRateChanged(value = value)) },
                     )
                 },
                 second = { modifier ->
@@ -389,7 +473,7 @@ private fun CalculatorFields(
                         value = state.taxRate,
                         suffix = "%",
                         error = state.errors["taxRate"],
-                        onValueChange = { value -> onStateChange { copy(taxRate = value, errors = errors - "taxRate", result = null) } },
+                        onValueChange = { value -> onEvent(CalculatorEvent.TaxRateChanged(value = value)) },
                     )
                 },
             )
@@ -399,7 +483,7 @@ private fun CalculatorFields(
                 value = state.exchangeRate,
                 suffix = "兑换比例",
                 error = state.errors["exchangeRate"],
-                onValueChange = { value -> onStateChange { copy(exchangeRate = value, errors = errors - "exchangeRate", result = null) } },
+                onValueChange = { value -> onEvent(CalculatorEvent.ExchangeRateChanged(value = value)) },
             )
             Spacer(modifier = Modifier.height(16.dp))
             Row(
@@ -415,7 +499,7 @@ private fun CalculatorFields(
                     text = "添加产品",
                     modifier = Modifier
                         .heightIn(min = 48.dp)
-                        .clickable(role = Role.Button, onClick = onAddProduct)
+                        .clickable(role = Role.Button, onClick = { onEvent(CalculatorEvent.AddProduct) })
                         .padding(horizontal = 12.dp, vertical = 14.dp),
                     style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
                 )
@@ -425,20 +509,23 @@ private fun CalculatorFields(
                 ProductRow(
                     state = productState,
                     wide = wide,
-                    onChange = { updated ->
-                        onStateChange {
-                            copy(
-                                products = products.mapIndexed { productIndex, current ->
-                                    if (productIndex == productState.index) updated else current
-                                },
-                                errors = errors -
-                                    "product-${productState.index}-unitPrice" -
-                                    "product-${productState.index}-quantity",
-                                result = null,
-                            )
-                        }
+                    onUnitPriceChange = { value ->
+                        onEvent(
+                            CalculatorEvent.ProductUnitPriceChanged(
+                                index = productState.index,
+                                value = value,
+                            ),
+                        )
                     },
-                    onRemove = { onRemoveProduct(productState.index) },
+                    onQuantityChange = { value ->
+                        onEvent(
+                            CalculatorEvent.ProductQuantityChanged(
+                                index = productState.index,
+                                value = value,
+                            ),
+                        )
+                    },
+                    onRemove = { onEvent(CalculatorEvent.RemoveProduct(index = productState.index)) },
                 )
                 if (productState.index != state.productRows.lastIndex) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Border)
@@ -455,7 +542,7 @@ private fun CalculatorFields(
                         value = state.smallLabelPrice,
                         suffix = "元/个",
                         error = state.errors["smallLabelPrice"],
-                        onValueChange = { value -> onStateChange { copy(smallLabelPrice = value, errors = errors - "smallLabelPrice", result = null) } },
+                        onValueChange = { value -> onEvent(CalculatorEvent.SmallLabelPriceChanged(value = value)) },
                     )
                 },
                 second = { modifier ->
@@ -465,7 +552,7 @@ private fun CalculatorFields(
                         value = state.largeLabelPrice,
                         suffix = "元/箱",
                         error = state.errors["largeLabelPrice"],
-                        onValueChange = { value -> onStateChange { copy(largeLabelPrice = value, errors = errors - "largeLabelPrice", result = null) } },
+                        onValueChange = { value -> onEvent(CalculatorEvent.LargeLabelPriceChanged(value = value)) },
                     )
                 },
             )
@@ -475,7 +562,7 @@ private fun CalculatorFields(
                 value = state.boxCount,
                 suffix = "箱",
                 error = state.errors["boxCount"],
-                onValueChange = { value -> onStateChange { copy(boxCount = value, errors = errors - "boxCount", result = null) } },
+                onValueChange = { value -> onEvent(CalculatorEvent.BoxCountChanged(value = value)) },
             )
         }
         SectionCard(title = "优惠", description = "按货物体积抵扣，默认无优惠") {
@@ -484,7 +571,7 @@ private fun CalculatorFields(
                 value = state.discountUnitPrice,
                 suffix = "元/立方",
                 error = state.errors["discountUnitPrice"],
-                onValueChange = { value -> onStateChange { copy(discountUnitPrice = value, errors = errors - "discountUnitPrice", result = null) } },
+                onValueChange = { value -> onEvent(CalculatorEvent.DiscountUnitPriceChanged(value = value)) },
             )
         }
     }
@@ -513,7 +600,8 @@ private fun FieldPair(
 private fun ProductRow(
     state: ProductRowState,
     wide: Boolean,
-    onChange: (ProductInput) -> Unit,
+    onUnitPriceChange: (String) -> Unit,
+    onQuantityChange: (String) -> Unit,
     onRemove: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -540,7 +628,7 @@ private fun ProductRow(
                     value = state.product.unitPrice,
                     suffix = "原币",
                     error = state.unitPriceError,
-                    onValueChange = { onChange(state.product.copy(unitPrice = it)) },
+                    onValueChange = onUnitPriceChange,
                     modifier = modifier,
                 )
             },
@@ -550,7 +638,7 @@ private fun ProductRow(
                     value = state.product.quantity,
                     suffix = "个",
                     error = state.quantityError,
-                    onValueChange = { onChange(state.product.copy(quantity = it)) },
+                    onValueChange = onQuantityChange,
                     modifier = modifier,
                 )
             },
