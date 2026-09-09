@@ -44,6 +44,7 @@ import com.artillery.fehelper.common.ToolDefinition
 import com.artillery.fehelper.common.ToolEntryCard
 import com.artillery.fehelper.common.ToolLayout
 import com.artillery.fehelper.json.JsonFormatterScreen
+import com.artillery.fehelper.password.RandomPasswordScreen
 import com.artillery.fehelper.time.TimestampConverterScreen
 import com.artillery.fehelper.totp.TotpScreen
 import com.artillery.fehelper.websocket.WebSocketToolScreen
@@ -56,6 +57,7 @@ private const val JsonFormatterToolId = "json-formatter"
 private const val TimestampConverterToolId = "timestamp-converter"
 private const val TotpToolId = "totp"
 private const val WebSocketToolId = "websocket-tool"
+private const val RandomPasswordToolId = "random-password"
 
 private val tools = listOf(
     ToolDefinition(
@@ -88,6 +90,12 @@ private val tools = listOf(
         description = "测试 WebSocket 连接、消息收发并分析通信结果",
         category = "开发工具",
     ),
+    ToolDefinition(
+        id = RandomPasswordToolId,
+        title = "随机密码生成器",
+        description = "按自定义字符类型生成随机密码，支持批量生成和一键复制",
+        category = "安全工具",
+    ),
 )
 
 private enum class Destination {
@@ -97,6 +105,7 @@ private enum class Destination {
     TIMESTAMP_CONVERTER,
     TOTP,
     WEBSOCKET_TOOL,
+    RANDOM_PASSWORD,
 }
 
 private data class HomeContentState(
@@ -168,6 +177,7 @@ fun App() {
                                 TimestampConverterToolId -> backStack.add(Destination.TIMESTAMP_CONVERTER)
                                 TotpToolId -> backStack.add(Destination.TOTP)
                                 WebSocketToolId -> backStack.add(Destination.WEBSOCKET_TOOL)
+                                RandomPasswordToolId -> backStack.add(Destination.RANDOM_PASSWORD)
                             }
                         },
                     )
@@ -186,6 +196,12 @@ fun App() {
                 }
                 entry(Destination.WEBSOCKET_TOOL) {
                     WebSocketToolScreen(
+                        modifier = Modifier,
+                        onBack = navigateBack,
+                    )
+                }
+                entry(Destination.RANDOM_PASSWORD) {
+                    RandomPasswordScreen(
                         modifier = Modifier,
                         onBack = navigateBack,
                     )
