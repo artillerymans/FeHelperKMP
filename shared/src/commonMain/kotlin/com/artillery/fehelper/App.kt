@@ -44,6 +44,7 @@ import com.artillery.fehelper.common.ToolDefinition
 import com.artillery.fehelper.common.ToolEntryCard
 import com.artillery.fehelper.common.ToolLayout
 import com.artillery.fehelper.json.JsonFormatterScreen
+import com.artillery.fehelper.loan.LoanCalculatorScreen
 import com.artillery.fehelper.password.RandomPasswordScreen
 import com.artillery.fehelper.time.TimestampConverterScreen
 import com.artillery.fehelper.totp.TotpScreen
@@ -58,6 +59,7 @@ private const val TimestampConverterToolId = "timestamp-converter"
 private const val TotpToolId = "totp"
 private const val WebSocketToolId = "websocket-tool"
 private const val RandomPasswordToolId = "random-password"
+private const val LoanCalculatorToolId = "loan-calculator"
 
 private val tools = listOf(
     ToolDefinition(
@@ -96,6 +98,12 @@ private val tools = listOf(
         description = "按自定义字符类型生成随机密码，支持批量生成和一键复制",
         category = "安全工具",
     ),
+    ToolDefinition(
+        id = LoanCalculatorToolId,
+        title = "贷款利率计算器",
+        description = "根据本金、期限和还款方式反推年化利率或查看逐月还款明细",
+        category = "生活工具",
+    ),
 )
 
 private enum class Destination {
@@ -106,6 +114,7 @@ private enum class Destination {
     TOTP,
     WEBSOCKET_TOOL,
     RANDOM_PASSWORD,
+    LOAN_CALCULATOR,
 }
 
 private data class HomeContentState(
@@ -178,6 +187,7 @@ fun App() {
                                 TotpToolId -> backStack.add(Destination.TOTP)
                                 WebSocketToolId -> backStack.add(Destination.WEBSOCKET_TOOL)
                                 RandomPasswordToolId -> backStack.add(Destination.RANDOM_PASSWORD)
+                                LoanCalculatorToolId -> backStack.add(Destination.LOAN_CALCULATOR)
                             }
                         },
                     )
@@ -202,6 +212,12 @@ fun App() {
                 }
                 entry(Destination.RANDOM_PASSWORD) {
                     RandomPasswordScreen(
+                        modifier = Modifier,
+                        onBack = navigateBack,
+                    )
+                }
+                entry(Destination.LOAN_CALCULATOR) {
+                    LoanCalculatorScreen(
                         modifier = Modifier,
                         onBack = navigateBack,
                     )
