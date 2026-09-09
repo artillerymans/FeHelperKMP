@@ -148,8 +148,6 @@ private class JsonFormatterViewModel : StateViewModel<JsonFormatterState>(initia
 @Composable
 internal fun JsonFormatterScreen(onBack: () -> Unit) {
     val viewModel: JsonFormatterViewModel = viewModel(initializer = { JsonFormatterViewModel() })
-    val rawJson by viewModel.collectAsState(JsonFormatterState::rawJson)
-    val outputState by viewModel.collectAsState(JsonFormatterState::output)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -179,8 +177,9 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = horizontalPadding, vertical = 24.dp),
                 ) {
+                    val view by viewModel.collectAsState(JsonFormatterState::view)
                     JsonToolbar(
-                        view = outputState.view,
+                        view = view,
                         onEvent = viewModel::onEvent,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -189,6 +188,7 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
+                            val rawJson by viewModel.collectAsState(JsonFormatterState::rawJson)
                             JsonEditorPanel(
                                 title = "原始 JSON",
                                 value = rawJson,
@@ -196,6 +196,7 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                                 modifier = Modifier.weight(1f),
                                 height = 560.dp,
                             )
+                            val outputState by viewModel.collectAsState(JsonFormatterState::output)
                             JsonOutputPanel(
                                 title = "格式化结果",
                                 state = outputState,
@@ -204,6 +205,7 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                             )
                         }
                     } else {
+                        val rawJson by viewModel.collectAsState(JsonFormatterState::rawJson)
                         JsonEditorPanel(
                             title = "原始 JSON",
                             value = rawJson,
@@ -212,6 +214,7 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                             height = 360.dp,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
+                        val outputState by viewModel.collectAsState(JsonFormatterState::output)
                         JsonOutputPanel(
                             title = "格式化结果",
                             state = outputState,

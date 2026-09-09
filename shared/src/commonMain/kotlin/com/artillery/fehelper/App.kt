@@ -100,7 +100,6 @@ private enum class Destination {
 }
 
 private data class HomeContentState(
-    val query: String,
     val layout: ToolLayout,
     val visibleTools: List<ToolDefinition>,
 )
@@ -122,7 +121,7 @@ private data class HomeState(
                     }
                 }
             }
-            return HomeContentState(query = query, layout = layout, visibleTools = visibleTools)
+            return HomeContentState(layout = layout, visibleTools = visibleTools)
         }
 }
 
@@ -202,7 +201,6 @@ private fun HomeScreen(
     onToolClick: (ToolDefinition) -> Unit,
 ) {
     val viewModel: HomeViewModel = viewModel(initializer = { HomeViewModel(tools = tools) })
-    val state by viewModel.collectAsState(HomeState::content)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -231,17 +229,20 @@ private fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val query by viewModel.collectAsState(HomeState::query)
                     SearchField(
                         modifier = Modifier.weight(1f),
-                        query = state.query,
+                        query = query,
                         onQueryChange = viewModel::onQueryChange,
                     )
-                    LayoutToggle(layout = state.layout, onLayoutChange = viewModel::onLayoutChange)
+                    val layout by viewModel.collectAsState(HomeState::layout)
+                    LayoutToggle(layout = layout, onLayoutChange = viewModel::onLayoutChange)
                 }
             } else {
+                val query by viewModel.collectAsState(HomeState::query)
                 SearchField(
                     modifier = Modifier.fillMaxWidth(),
-                    query = state.query,
+                    query = query,
                     onQueryChange = viewModel::onQueryChange,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -249,14 +250,16 @@ private fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    LayoutToggle(layout = state.layout, onLayoutChange = viewModel::onLayoutChange)
+                    val layout by viewModel.collectAsState(HomeState::layout)
+                    LayoutToggle(layout = layout, onLayoutChange = viewModel::onLayoutChange)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(text = "工具目录", style = MaterialTheme.typography.titleLarge.copy(color = Ink))
             Spacer(modifier = Modifier.height(12.dp))
-            ToolResults(state = state, wide = wide, onToolClick = onToolClick)
+            val resultsState by viewModel.collectAsState(HomeState::content)
+            ToolResults(state = resultsState, wide = wide, onToolClick = onToolClick)
         }
     }
 }

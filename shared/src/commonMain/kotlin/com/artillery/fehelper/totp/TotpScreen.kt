@@ -129,13 +129,6 @@ private data class TotpState(
         )
 }
 
-private sealed interface TotpEvent {
-    data class InputChanged(val value: String) : TotpEvent
-    data class DigitsChanged(val value: TotpDigits) : TotpEvent
-    data class PeriodChanged(val value: TotpPeriod) : TotpEvent
-    data class CopyResult(val success: Boolean) : TotpEvent
-}
-
 private class TotpViewModel : StateViewModel<TotpState>(initialState = TotpState()) {
     init {
         viewModelScope.launch {
@@ -146,38 +139,41 @@ private class TotpViewModel : StateViewModel<TotpState>(initialState = TotpState
         }
     }
 
-    fun onEvent(event: TotpEvent) {
-        when (event) {
-            is TotpEvent.InputChanged -> {
-                val parsed = parseTotpInput(value = event.value)
-                setState {
-                    copy(
-                        secretInput = event.value,
-                        digits = if (event.value.trim().startsWith("otpauth://", ignoreCase = true)) {
-                            parsed.setup?.digits ?: digits
-                        } else {
-                            digits
-                        },
-                        period = if (event.value.trim().startsWith("otpauth://", ignoreCase = true)) {
-                            parsed.setup?.period ?: period
-                        } else {
-                            period
-                        },
-                        copied = false,
-                        copyError = false,
-                    )
-                }
-            }
-            is TotpEvent.DigitsChanged -> setState { copy(digits = event.value) }
-            is TotpEvent.PeriodChanged -> setState { copy(period = event.value) }
-            is TotpEvent.CopyResult -> {
-                setState { copy(copied = event.success, copyError = !event.success) }
-                if (event.success) {
-                    viewModelScope.launch {
-                        delay(1500)
-                        setState { if (copied) copy(copied = false) else this }
-                    }
-                }
+    fun onInputChanged(value: String) {
+        val parsed = parseTotpInput(value = value)
+        setState {
+            copy(
+                secretInput = value,
+                digits = if (value.trim().startsWith("otpauth://", ignoreCase = true)) {
+                    parsed.setup?.digits ?: digits
+                } else {
+                    digits
+                },
+                period = if (value.trim().startsWith("otpauth://", ignoreCase = true)) {
+                    parsed.setup?.period ?: period
+                } else {
+                    period
+                },
+                copied = false,
+                copyError = false,
+            )
+        }
+    }
+
+    fun onDigitsChanged(value: TotpDigits) {
+        setState { copy(digits = value) }
+    }
+
+    fun onPeriodChanged(value: TotpPeriod) {
+        setState { copy(period = value) }
+    }
+
+    fun onCopyResult(success: Boolean) {
+        setState { copy(copied = success, copyError = !success) }
+        if (success) {
+            viewModelScope.launch {
+                delay(1500)
+                setState { if (copied) copy(copied = false) else this }
             }
         }
     }
@@ -187,10 +183,6 @@ private class TotpViewModel : StateViewModel<TotpState>(initialState = TotpState
 @Composable
 internal fun TotpScreen(onBack: () -> Unit) {
     val viewModel: TotpViewModel = viewModel(initializer = { TotpViewModel() })
-    val inputState by viewModel.collectAsState(TotpState::input)
-    val settingsState by viewModel.collectAsState(TotpState::settings)
-    val codeState by viewModel.collectAsState(TotpState::codeState)
-    val timeState by viewModel.collectAsState(TotpState::timeState)
     val clipboardManager = LocalClipboardManager.current
 
     BoxWithConstraints(
@@ -225,13 +217,14 @@ internal fun TotpScreen(onBack: () -> Unit) {
                         text = "本地生成 TOTP 验证码，密钥只在当前设备计算",
                         style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk),
                     )
+                    val inputState by viewModel.collectAsState(TotpState::input)
                     SectionCard(
                         title = "导入密钥",
                         description = "支持直接输入 Base32 密钥，或粘贴 otpauth:// URI",
                     ) {
                         OutlinedTextField(
                             value = inputState.value,
-                            onValueChange = { value -> viewModel.onEvent(TotpEvent.InputChanged(value = value)) },
+                            onValueChange = viewModel::onInputChanged,
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(text = "Base32 密钥或 otpauth:// URI") },
                             placeholder = { Text(text = "例如：JBSWY3DPEHPK3PXP") },
@@ -255,6 +248,7 @@ internal fun TotpScreen(onBack: () -> Unit) {
                         }
                     }
 
+                    val settingsState by viewModel.collectAsState(TotpState::settings)
                     SectionCard(
                         title = "验证码设置",
                         description = "按服务端配置选择位数和刷新周期",
@@ -264,7 +258,7 @@ internal fun TotpScreen(onBack: () -> Unit) {
                             options = TotpDigits.entries,
                             selected = settingsState.digits,
                             label = { it.label },
-                            onSelect = { value -> viewModel.onEvent(TotpEvent.DigitsChanged(value = value)) },
+                            onSelect = viewModel::onDigitsChanged,
                         )
                         SettingGroup(
                             modifier = Modifier.padding(top = 16.dp),
@@ -272,9 +266,10 @@ internal fun TotpScreen(onBack: () -> Unit) {
                             options = TotpPeriod.entries,
                             selected = settingsState.period,
                             label = { it.label },
-                            onSelect = { value -> viewModel.onEvent(TotpEvent.PeriodChanged(value = value)) },
+                            onSelect = viewModel::onPeriodChanged,
                         )
                     }
+                    val codeState by viewModel.collectAsState(TotpState::codeState)
                     SectionCard(
                         title = "当前验证码",
                         description = if (codeState.code == null) "输入有效密钥后生成" else "每 ${codeState.period.seconds} 秒自动刷新",
@@ -331,7 +326,7 @@ internal fun TotpScreen(onBack: () -> Unit) {
                                             val success = runCatching {
                                                 clipboardManager.setText(AnnotatedString(code))
                                             }.isSuccess
-                                            viewModel.onEvent(TotpEvent.CopyResult(success = success))
+                                            viewModel.onCopyResult(success = success)
                                         },
                                     )
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -359,6 +354,7 @@ internal fun TotpScreen(onBack: () -> Unit) {
                         }
                     }
 
+                    val timeState by viewModel.collectAsState(TotpState::timeState)
                     SectionCard(
                         title = "当前时间",
                         description = "验证码按设备当前时间计算",

@@ -70,9 +70,13 @@ private data class LocalTimeInputState(
     val result: TimestampConversion?,
 )
 
+private data class WorldClockItemState(
+    val clock: WorldClock,
+    val selected: Boolean,
+)
+
 private data class WorldClockState(
-    val clocks: List<WorldClock>,
-    val selectedOffset: Int,
+    val items: List<WorldClockItemState>,
 )
 
 private data class TimestampConverterState(
@@ -95,7 +99,11 @@ private data class TimestampConverterState(
         get() = LocalTimeInputState(input = localInput, result = localResult)
 
     val worldClock: WorldClockState
-        get() = WorldClockState(clocks = worldClocks(now = current), selectedOffset = selectedWorldClock)
+        get() = WorldClockState(
+            items = worldClocks(now = current).map { clock ->
+                WorldClockItemState(clock = clock, selected = clock.offsetHours == selectedWorldClock)
+            },
+        )
 }
 
 private fun initialTimestampConverterState(): TimestampConverterState {
@@ -159,10 +167,6 @@ private class TimestampConverterViewModel : StateViewModel<TimestampConverterSta
 @Composable
 internal fun TimestampConverterScreen(onBack: () -> Unit) {
     val viewModel: TimestampConverterViewModel = viewModel(initializer = { TimestampConverterViewModel() })
-    val realtimeState by viewModel.collectAsState(TimestampConverterState::realtime)
-    val timestampState by viewModel.collectAsState(TimestampConverterState::timestamp)
-    val localTimeState by viewModel.collectAsState(TimestampConverterState::localTime)
-    val worldClockState by viewModel.collectAsState(TimestampConverterState::worldClock)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -198,6 +202,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                         text = "以 Asia/Shanghai 为基准，快速完成本地时间、Unix 时间戳和世界时区转换",
                         style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk),
                     )
+                    val realtimeState by viewModel.collectAsState(TimestampConverterState::realtime)
                     RealtimeCard(
                         state = realtimeState,
                         wide = wide,
@@ -209,6 +214,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
+                            val timestampState by viewModel.collectAsState(TimestampConverterState::timestamp)
                             TimestampInputCard(
                                 state = timestampState,
                                 onInputChange = viewModel::onTimestampInputChange,
@@ -216,6 +222,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                                 onConvert = viewModel::onConvertTimestamp,
                                 modifier = Modifier.weight(1f),
                             )
+                            val localTimeState by viewModel.collectAsState(TimestampConverterState::localTime)
                             LocalTimeInputCard(
                                 state = localTimeState,
                                 onInputChange = viewModel::onLocalInputChange,
@@ -224,6 +231,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                             )
                         }
                     } else {
+                        val timestampState by viewModel.collectAsState(TimestampConverterState::timestamp)
                         TimestampInputCard(
                             state = timestampState,
                             onInputChange = viewModel::onTimestampInputChange,
@@ -231,6 +239,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                             onConvert = viewModel::onConvertTimestamp,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        val localTimeState by viewModel.collectAsState(TimestampConverterState::localTime)
                         LocalTimeInputCard(
                             state = localTimeState,
                             onInputChange = viewModel::onLocalInputChange,
@@ -238,6 +247,7 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+                    val worldClockState by viewModel.collectAsState(TimestampConverterState::worldClock)
                     WorldClockCard(
                         state = worldClockState,
                         wide = wide,
@@ -456,23 +466,22 @@ private fun WorldClockCard(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            state.clocks.firstOrNull { it.offsetHours == state.selectedOffset }?.let { selectedClock ->
+            state.items.firstOrNull { it.selected }?.clock?.let { selectedClock ->
                 Text(
                     text = "当前选择：${selectedClock.label} · ${selectedClock.location} · ${selectedClock.localTime}",
                     style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
                 )
             }
             val columns = if (wide) 2 else 1
-            state.clocks.chunked(columns).forEach { rowClocks ->
+            state.items.chunked(columns).forEach { rowClocks ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     rowClocks.forEach { clock ->
                         WorldClockItem(
-                            clock = clock,
-                            selected = clock.offsetHours == state.selectedOffset,
-                            onClick = { onSelect(clock.offsetHours) },
+                            state = clock,
+                            onClick = { onSelect(clock.clock.offsetHours) },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -486,24 +495,23 @@ private fun WorldClockCard(
 @Composable
 private fun WorldClockItem(
     modifier: Modifier,
-    clock: WorldClock,
-    selected: Boolean,
+    state: WorldClockItemState,
     onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
         modifier = modifier.heightIn(min = 72.dp),
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.White,
-        border = BorderStroke(1.dp, if (selected) BrandBlue else Border),
+        color = if (state.selected) MaterialTheme.colorScheme.primaryContainer else Color.White,
+        border = BorderStroke(1.dp, if (state.selected) BrandBlue else Border),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = "${clock.label} · ${clock.location}",
-                style = MaterialTheme.typography.labelLarge.copy(color = if (selected) BrandBlue else Ink),
+                text = "${state.clock.label} · ${state.clock.location}",
+                style = MaterialTheme.typography.labelLarge.copy(color = if (state.selected) BrandBlue else Ink),
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = clock.localTime, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk))
+            Text(text = state.clock.localTime, style = MaterialTheme.typography.bodyMedium.copy(color = MutedInk))
         }
     }
 }

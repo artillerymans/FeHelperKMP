@@ -242,10 +242,6 @@ internal fun WebSocketToolScreen(
     onBack: () -> Unit,
 ) {
     val viewModel: WebSocketViewModel = viewModel(initializer = { WebSocketViewModel() })
-    val connectionState by viewModel.collectAsState(WebSocketState::connection)
-    val analysisState by viewModel.collectAsState(WebSocketState::analysis)
-    val trafficState by viewModel.collectAsState(WebSocketState::trafficView)
-    val sendState by viewModel.collectAsState(WebSocketState::send)
 
     BoxWithConstraints(
         modifier = modifier
@@ -290,6 +286,7 @@ internal fun WebSocketToolScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
+                            val connectionState by viewModel.collectAsState(WebSocketState::connection)
                             ConnectionCard(
                                 modifier = Modifier.weight(1f),
                                 state = connectionState,
@@ -297,12 +294,14 @@ internal fun WebSocketToolScreen(
                                 onConnect = viewModel::connect,
                                 onDisconnect = viewModel::disconnect,
                             )
+                            val analysisState by viewModel.collectAsState(WebSocketState::analysis)
                             AnalysisCard(
                                 modifier = Modifier.weight(1f),
                                 state = analysisState,
                             )
                         }
                     } else {
+                        val connectionState by viewModel.collectAsState(WebSocketState::connection)
                         ConnectionCard(
                             modifier = Modifier.fillMaxWidth(),
                             state = connectionState,
@@ -310,17 +309,20 @@ internal fun WebSocketToolScreen(
                             onConnect = viewModel::connect,
                             onDisconnect = viewModel::disconnect,
                         )
+                        val analysisState by viewModel.collectAsState(WebSocketState::analysis)
                         AnalysisCard(
                             modifier = Modifier.fillMaxWidth(),
                             state = analysisState,
                         )
                     }
+                    val trafficState by viewModel.collectAsState(WebSocketState::trafficView)
                     TrafficCard(
                         modifier = Modifier.fillMaxWidth(),
                         state = trafficState,
                         height = if (wide) 440.dp else 360.dp,
                         onClear = viewModel::clearTraffic,
                     )
+                    val sendState by viewModel.collectAsState(WebSocketState::send)
                     SendCard(
                         modifier = Modifier.fillMaxWidth(),
                         state = sendState,
