@@ -142,7 +142,7 @@ private class LoanCalculatorViewModel : StateViewModel<LoanState>(initialState =
     fun calculate() {
         setState {
             val outcome = validateAndCalculate(state = this)
-            copy(errors = outcome.first, result = outcome.second)
+            copy(errors = outcome.errors, result = outcome.result)
         }
     }
 
