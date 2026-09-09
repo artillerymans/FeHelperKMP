@@ -24,15 +24,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -48,6 +47,8 @@ import com.artillery.fehelper.json.JsonFormatterScreen
 import com.artillery.fehelper.time.TimestampConverterScreen
 import com.artillery.fehelper.totp.TotpScreen
 import com.artillery.fehelper.websocket.WebSocketToolScreen
+import com.artillery.state.StateViewModel
+import com.artillery.state.collectAsState
 import kotlinx.coroutines.flow.collect
 
 private const val AmzToolId = "amz-water-ticket"
@@ -96,6 +97,43 @@ private enum class Destination {
     TIMESTAMP_CONVERTER,
     TOTP,
     WEBSOCKET_TOOL,
+}
+
+private data class HomeContentState(
+    val query: String,
+    val layout: ToolLayout,
+    val visibleTools: List<ToolDefinition>,
+)
+
+private data class HomeState(
+    val tools: List<ToolDefinition>,
+    val query: String = "",
+    val layout: ToolLayout = ToolLayout.GRID,
+) {
+    val content: HomeContentState
+        get() {
+            val keyword = query.trim()
+            val visibleTools = if (keyword.isEmpty()) {
+                tools
+            } else {
+                tools.filter { tool ->
+                    listOf(tool.title, tool.description, tool.category).any { value ->
+                        value.contains(keyword, ignoreCase = true)
+                    }
+                }
+            }
+            return HomeContentState(query = query, layout = layout, visibleTools = visibleTools)
+        }
+}
+
+private class HomeViewModel(tools: List<ToolDefinition>) : StateViewModel<HomeState>(initialState = HomeState(tools = tools)) {
+    fun onQueryChange(value: String) {
+        setState { copy(query = value) }
+    }
+
+    fun onLayoutChange(value: ToolLayout) {
+        setState { copy(layout = value) }
+    }
 }
 
 @Composable
@@ -163,8 +201,8 @@ private fun HomeScreen(
     tools: List<ToolDefinition>,
     onToolClick: (ToolDefinition) -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
-    var layout by remember { mutableStateOf(ToolLayout.GRID) }
+    val viewModel: HomeViewModel = viewModel(initializer = { HomeViewModel(tools = tools) })
+    val state by viewModel.collectAsState(HomeState::content)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -173,14 +211,6 @@ private fun HomeScreen(
             .safeContentPadding(),
     ) {
         val wide = maxWidth >= 720.dp
-        val keyword = query.trim()
-        val visibleTools = if (keyword.isEmpty()) {
-            tools
-        } else {
-            tools.filter { tool ->
-                listOf(tool.title, tool.description, tool.category).any { it.contains(keyword, ignoreCase = true) }
-            }
-        }
 
         Column(
             modifier = Modifier
@@ -201,24 +231,32 @@ private fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SearchField(modifier = Modifier.weight(1f), query = query, onQueryChange = { query = it })
-                    LayoutToggle(layout = layout, onLayoutChange = { layout = it })
+                    SearchField(
+                        modifier = Modifier.weight(1f),
+                        query = state.query,
+                        onQueryChange = viewModel::onQueryChange,
+                    )
+                    LayoutToggle(layout = state.layout, onLayoutChange = viewModel::onLayoutChange)
                 }
             } else {
-                SearchField(modifier = Modifier.fillMaxWidth(), query = query, onQueryChange = { query = it })
+                SearchField(
+                    modifier = Modifier.fillMaxWidth(),
+                    query = state.query,
+                    onQueryChange = viewModel::onQueryChange,
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    LayoutToggle(layout = layout, onLayoutChange = { layout = it })
+                    LayoutToggle(layout = state.layout, onLayoutChange = viewModel::onLayoutChange)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(text = "工具目录", style = MaterialTheme.typography.titleLarge.copy(color = Ink))
             Spacer(modifier = Modifier.height(12.dp))
-            ToolResults(tools = visibleTools, layout = layout, wide = wide, onToolClick = onToolClick)
+            ToolResults(state = state, wide = wide, onToolClick = onToolClick)
         }
     }
 }
@@ -268,26 +306,25 @@ private fun LayoutToggle(
 
 @Composable
 private fun ToolResults(
-    tools: List<ToolDefinition>,
-    layout: ToolLayout,
+    state: HomeContentState,
     wide: Boolean,
     onToolClick: (ToolDefinition) -> Unit,
 ) {
-    if (tools.isEmpty()) {
+    if (state.visibleTools.isEmpty()) {
         Text(text = "没有匹配的工具", style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk))
         return
     }
 
-    if (layout == ToolLayout.LIST) {
+    if (state.layout == ToolLayout.LIST) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            tools.forEach { tool ->
+            state.visibleTools.forEach { tool ->
                 ToolEntryCard(
                     modifier = Modifier.fillMaxWidth(),
                     tool = tool,
-                    layout = layout,
+                    layout = state.layout,
                     onClick = { onToolClick(tool) },
                 )
             }
@@ -300,7 +337,7 @@ private fun ToolResults(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        tools.chunked(columns).forEach { rowTools ->
+        state.visibleTools.chunked(columns).forEach { rowTools ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -309,7 +346,7 @@ private fun ToolResults(
                     ToolEntryCard(
                         modifier = Modifier.weight(1f),
                         tool = tool,
-                        layout = layout,
+                        layout = state.layout,
                         onClick = { onToolClick(tool) },
                     )
                 }

@@ -33,12 +33,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artillery.fehelper.common.Border
 import com.artillery.fehelper.common.BrandBlue
 import com.artillery.fehelper.common.ErrorRed
@@ -58,6 +55,8 @@ import com.artillery.fehelper.common.SectionCard
 import com.artillery.fehelper.common.SuccessGreen
 import com.artillery.fehelper.json.formatJson
 import com.artillery.fehelper.json.parseJson
+import com.artillery.state.StateViewModel
+import com.artillery.state.collectAsState
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -85,61 +84,168 @@ private data class TrafficItem(
     val characterCount: Int,
 )
 
+private data class ConnectionViewState(
+    val endpoint: String,
+    val endpointError: String?,
+    val state: ConnectionState,
+)
+
+private data class AnalysisViewState(
+    val state: ConnectionState,
+    val sent: Int,
+    val received: Int,
+    val receivedCharacters: Int,
+)
+
+private data class TrafficViewState(
+    val items: List<TrafficItem>,
+    val revision: Int,
+)
+
+private data class SendViewState(
+    val input: String,
+    val enabled: Boolean,
+)
+
+private data class WebSocketState(
+    val endpoint: String = "",
+    val endpointError: String? = null,
+    val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
+    val messageInput: String = "",
+    val traffic: List<TrafficItem> = emptyList(),
+    val trafficRevision: Int = 0,
+) {
+    val connection: ConnectionViewState
+        get() = ConnectionViewState(endpoint = endpoint, endpointError = endpointError, state = connectionState)
+
+    val analysis: AnalysisViewState
+        get() = AnalysisViewState(
+            state = connectionState,
+            sent = traffic.count { it.direction == TrafficDirection.SENT },
+            received = traffic.count { it.direction == TrafficDirection.RECEIVED },
+            receivedCharacters = traffic.filter { it.direction == TrafficDirection.RECEIVED }.sumOf { it.characterCount },
+        )
+
+    val trafficView: TrafficViewState
+        get() = TrafficViewState(items = traffic, revision = trafficRevision)
+
+    val send: SendViewState
+        get() = SendViewState(
+            input = messageInput,
+            enabled = connectionState == ConnectionState.CONNECTED,
+        )
+}
+
+private class WebSocketViewModel : StateViewModel<WebSocketState>(initialState = WebSocketState()) {
+    private val client = WebSocketClient(
+        onOpen = {
+            setState {
+                copy(connectionState = ConnectionState.CONNECTED).appendTraffic(
+                    direction = TrafficDirection.EVENT,
+                    content = "连接成功",
+                )
+            }
+        },
+        onMessage = { message ->
+            setState { appendTraffic(direction = TrafficDirection.RECEIVED, content = message) }
+        },
+        onError = { message ->
+            setState {
+                copy(connectionState = ConnectionState.DISCONNECTED).appendTraffic(
+                    direction = TrafficDirection.ERROR,
+                    content = message,
+                )
+            }
+        },
+        onClose = { code, reason ->
+            val detail = reason.takeIf { it.isNotBlank() }?.let { "：$it" }.orEmpty()
+            setState {
+                copy(connectionState = ConnectionState.DISCONNECTED).appendTraffic(
+                    direction = TrafficDirection.EVENT,
+                    content = "连接已关闭（$code）$detail",
+                )
+            }
+        },
+    )
+
+    fun onEndpointChange(value: String) {
+        setState { copy(endpoint = value, endpointError = null) }
+    }
+
+    fun connect() {
+        withState { current ->
+            val value = current.endpoint.trim()
+            val error = validateEndpoint(value = value)
+            setState {
+                val updated = copy(
+                    endpoint = if (error == null) value else endpoint,
+                    endpointError = error,
+                    connectionState = if (error == null) ConnectionState.CONNECTING else connectionState,
+                )
+                if (error == null) {
+                    updated.appendTraffic(direction = TrafficDirection.EVENT, content = "正在连接 $value")
+                } else {
+                    updated
+                }
+            }
+            if (error == null) client.connect(url = value)
+        }
+    }
+
+    fun disconnect() {
+        client.disconnect()
+        setState {
+            copy(connectionState = ConnectionState.DISCONNECTED).appendTraffic(
+                direction = TrafficDirection.EVENT,
+                content = "已断开连接",
+            )
+        }
+    }
+
+    fun onMessageInputChange(value: String) {
+        setState { copy(messageInput = value) }
+    }
+
+    fun sendMessage() {
+        withState { current ->
+            if (current.connectionState != ConnectionState.CONNECTED) return@withState
+            val message = current.messageInput
+            val sent = client.send(message = message)
+            setState {
+                appendTraffic(
+                    direction = if (sent) TrafficDirection.SENT else TrafficDirection.ERROR,
+                    content = if (sent) message else "消息发送失败，连接已不可用",
+                )
+            }
+        }
+    }
+
+    fun clearTraffic() {
+        setState { copy(traffic = emptyList(), trafficRevision = trafficRevision + 1) }
+    }
+
+    override fun onCleared() {
+        client.disconnect()
+        super.onCleared()
+    }
+
+    private fun WebSocketState.appendTraffic(direction: TrafficDirection, content: String): WebSocketState =
+        copy(
+            traffic = (traffic + trafficItem(direction = direction, content = content)).takeLast(MaxTrafficItems),
+            trafficRevision = trafficRevision + 1,
+        )
+}
+
 @Composable
 internal fun WebSocketToolScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
 ) {
-    var endpoint by remember { mutableStateOf("") }
-    var endpointError by remember { mutableStateOf<String?>(null) }
-    var connectionState by remember { mutableStateOf(ConnectionState.DISCONNECTED) }
-    var messageInput by remember { mutableStateOf("") }
-    var traffic by remember { mutableStateOf(emptyList<TrafficItem>()) }
-    var trafficRevision by remember { mutableStateOf(0) }
-
-    fun appendTraffic(direction: TrafficDirection, content: String) {
-        traffic = (traffic + trafficItem(direction = direction, content = content)).takeLast(MaxTrafficItems)
-        trafficRevision += 1
-    }
-    val client = remember {
-        WebSocketClient(
-            onOpen = {
-                connectionState = ConnectionState.CONNECTED
-                appendTraffic(direction = TrafficDirection.EVENT, content = "连接成功")
-            },
-            onMessage = { message -> appendTraffic(direction = TrafficDirection.RECEIVED, content = message) },
-            onError = { message ->
-                connectionState = ConnectionState.DISCONNECTED
-                appendTraffic(direction = TrafficDirection.ERROR, content = message)
-            },
-            onClose = { code, reason ->
-                connectionState = ConnectionState.DISCONNECTED
-                val detail = reason.takeIf { it.isNotBlank() }?.let { "：$it" }.orEmpty()
-                appendTraffic(direction = TrafficDirection.EVENT, content = "连接已关闭（$code）$detail")
-            },
-        )
-    }
-
-    DisposableEffect(key1 = client) {
-        onDispose { client.disconnect() }
-    }
-
-    val connect = {
-        val value = endpoint.trim()
-        val error = validateEndpoint(value = value)
-        endpointError = error
-        if (error == null) {
-            endpoint = value
-            connectionState = ConnectionState.CONNECTING
-            appendTraffic(direction = TrafficDirection.EVENT, content = "正在连接 $value")
-            client.connect(url = value)
-        }
-    }
-    val disconnect = {
-        client.disconnect()
-        connectionState = ConnectionState.DISCONNECTED
-        appendTraffic(direction = TrafficDirection.EVENT, content = "已断开连接")
-    }
+    val viewModel: WebSocketViewModel = viewModel(initializer = { WebSocketViewModel() })
+    val connectionState by viewModel.collectAsState(WebSocketState::connection)
+    val analysisState by viewModel.collectAsState(WebSocketState::analysis)
+    val trafficState by viewModel.collectAsState(WebSocketState::trafficView)
+    val sendState by viewModel.collectAsState(WebSocketState::send)
 
     BoxWithConstraints(
         modifier = modifier
@@ -186,64 +292,40 @@ internal fun WebSocketToolScreen(
                         ) {
                             ConnectionCard(
                                 modifier = Modifier.weight(1f),
-                                endpoint = endpoint,
-                                endpointError = endpointError,
                                 state = connectionState,
-                                onEndpointChange = {
-                                    endpoint = it
-                                    endpointError = null
-                                },
-                                onConnect = connect,
-                                onDisconnect = disconnect,
+                                onEndpointChange = viewModel::onEndpointChange,
+                                onConnect = viewModel::connect,
+                                onDisconnect = viewModel::disconnect,
                             )
                             AnalysisCard(
                                 modifier = Modifier.weight(1f),
-                                state = connectionState,
-                                traffic = traffic,
+                                state = analysisState,
                             )
                         }
                     } else {
                         ConnectionCard(
                             modifier = Modifier.fillMaxWidth(),
-                            endpoint = endpoint,
-                            endpointError = endpointError,
                             state = connectionState,
-                            onEndpointChange = {
-                                endpoint = it
-                                endpointError = null
-                            },
-                            onConnect = connect,
-                            onDisconnect = disconnect,
+                            onEndpointChange = viewModel::onEndpointChange,
+                            onConnect = viewModel::connect,
+                            onDisconnect = viewModel::disconnect,
                         )
                         AnalysisCard(
                             modifier = Modifier.fillMaxWidth(),
-                            state = connectionState,
-                            traffic = traffic,
+                            state = analysisState,
                         )
                     }
                     TrafficCard(
                         modifier = Modifier.fillMaxWidth(),
-                        traffic = traffic,
-                        revision = trafficRevision,
+                        state = trafficState,
                         height = if (wide) 440.dp else 360.dp,
-                        onClear = {
-                            traffic = emptyList()
-                            trafficRevision += 1
-                        },
+                        onClear = viewModel::clearTraffic,
                     )
                     SendCard(
                         modifier = Modifier.fillMaxWidth(),
-                        input = messageInput,
-                        enabled = connectionState == ConnectionState.CONNECTED,
-                        onInputChange = { messageInput = it },
-                        onSend = {
-                            val message = messageInput
-                            if (client.send(message = message)) {
-                                appendTraffic(direction = TrafficDirection.SENT, content = message)
-                            } else {
-                                appendTraffic(direction = TrafficDirection.ERROR, content = "消息发送失败，连接已不可用")
-                            }
-                        },
+                        state = sendState,
+                        onInputChange = viewModel::onMessageInputChange,
+                        onSend = viewModel::sendMessage,
                     )
                 }
             }
@@ -254,9 +336,7 @@ internal fun WebSocketToolScreen(
 @Composable
 private fun ConnectionCard(
     modifier: Modifier,
-    endpoint: String,
-    endpointError: String?,
-    state: ConnectionState,
+    state: ConnectionViewState,
     onEndpointChange: (String) -> Unit,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
@@ -271,28 +351,28 @@ private fun ConnectionCard(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             OutlinedTextField(
-                value = endpoint,
+                value = state.endpoint,
                 onValueChange = onEndpointChange,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = state == ConnectionState.DISCONNECTED,
+                enabled = state.state == ConnectionState.DISCONNECTED,
                 label = { Text(text = "WebSocket 地址") },
                 placeholder = { Text(text = "wss://example.com/socket") },
                 singleLine = true,
-                isError = endpointError != null,
-                supportingText = endpointError?.let { error -> { Text(text = error) } },
+                isError = state.endpointError != null,
+                supportingText = state.endpointError?.let { error -> { Text(text = error) } },
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ConnectionStatus(state = state)
+                ConnectionStatus(state = state.state)
                 ActionText(
                     modifier = Modifier.widthIn(min = 112.dp),
-                    text = if (state == ConnectionState.DISCONNECTED) "连接" else "断开",
+                    text = if (state.state == ConnectionState.DISCONNECTED) "连接" else "断开",
                     enabled = true,
-                    containerColor = if (state == ConnectionState.DISCONNECTED) BrandBlue else ErrorRed,
-                    onClick = if (state == ConnectionState.DISCONNECTED) onConnect else onDisconnect,
+                    containerColor = if (state.state == ConnectionState.DISCONNECTED) BrandBlue else ErrorRed,
+                    onClick = if (state.state == ConnectionState.DISCONNECTED) onConnect else onDisconnect,
                 )
             }
         }
@@ -321,24 +401,20 @@ private fun ConnectionStatus(state: ConnectionState) {
 @Composable
 private fun AnalysisCard(
     modifier: Modifier,
-    state: ConnectionState,
-    traffic: List<TrafficItem>,
+    state: AnalysisViewState,
 ) {
-    val sent = traffic.count { it.direction == TrafficDirection.SENT }
-    val received = traffic.count { it.direction == TrafficDirection.RECEIVED }
-    val receivedCharacters = traffic.filter { it.direction == TrafficDirection.RECEIVED }.sumOf { it.characterCount }
     SectionCard(
         modifier = modifier,
         title = "结果分析",
-        description = "当前状态：${state.label}",
+        description = "当前状态：${state.state.label}",
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AnalysisValue(modifier = Modifier.weight(1f), label = "已发送", value = sent.toString())
-            AnalysisValue(modifier = Modifier.weight(1f), label = "已接收", value = received.toString())
-            AnalysisValue(modifier = Modifier.weight(1f), label = "接收字符", value = receivedCharacters.toString())
+            AnalysisValue(modifier = Modifier.weight(1f), label = "已发送", value = state.sent.toString())
+            AnalysisValue(modifier = Modifier.weight(1f), label = "已接收", value = state.received.toString())
+            AnalysisValue(modifier = Modifier.weight(1f), label = "接收字符", value = state.receivedCharacters.toString())
         }
     }
 }
@@ -362,14 +438,13 @@ private fun AnalysisValue(modifier: Modifier, label: String, value: String) {
 @Composable
 private fun TrafficCard(
     modifier: Modifier,
-    traffic: List<TrafficItem>,
-    revision: Int,
+    state: TrafficViewState,
     height: Dp,
     onClear: () -> Unit,
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(key1 = revision) {
-        if (traffic.isNotEmpty()) listState.scrollToItem(index = traffic.lastIndex)
+    LaunchedEffect(key1 = state.revision) {
+        if (state.items.isNotEmpty()) listState.scrollToItem(index = state.items.lastIndex)
     }
 
     Card(
@@ -397,14 +472,14 @@ private fun TrafficCard(
                 ActionText(
                     modifier = Modifier,
                     text = "清空",
-                    enabled = traffic.isNotEmpty(),
+                    enabled = state.items.isNotEmpty(),
                     containerColor = Color.Transparent,
                     contentColor = BrandBlue,
                     onClick = onClear,
                 )
             }
             HorizontalDivider(color = Border)
-            if (traffic.isEmpty()) {
+            if (state.items.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(height),
                     contentAlignment = Alignment.Center,
@@ -420,9 +495,9 @@ private fun TrafficCard(
                     state = listState,
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                 ) {
-                    itemsIndexed(items = traffic) { index, item ->
+                    itemsIndexed(items = state.items) { index, item ->
                         TrafficRow(modifier = Modifier.fillMaxWidth(), item = item)
-                        if (index != traffic.lastIndex) HorizontalDivider(color = Border)
+                        if (index != state.items.lastIndex) HorizontalDivider(color = Border)
                     }
                 }
             }
@@ -470,25 +545,24 @@ private fun TrafficRow(modifier: Modifier, item: TrafficItem) {
 @Composable
 private fun SendCard(
     modifier: Modifier,
-    input: String,
-    enabled: Boolean,
+    state: SendViewState,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
 ) {
     SectionCard(
         modifier = modifier,
         title = "消息发送",
-        description = if (enabled) "输入要发送的文本内容" else "连接成功后可发送消息",
+        description = if (state.enabled) "输入要发送的文本内容" else "连接成功后可发送消息",
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             OutlinedTextField(
-                value = input,
+                value = state.input,
                 onValueChange = onInputChange,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = enabled,
+                enabled = state.enabled,
                 label = { Text(text = "消息内容") },
                 placeholder = { Text(text = "输入文本或 JSON") },
                 minLines = 4,
@@ -501,7 +575,7 @@ private fun SendCard(
                 ActionText(
                     modifier = Modifier.widthIn(min = 160.dp),
                     text = "发送消息",
-                    enabled = enabled && input.isNotEmpty(),
+                    enabled = state.enabled && state.input.isNotEmpty(),
                     containerColor = BrandBlue,
                     onClick = onSend,
                 )

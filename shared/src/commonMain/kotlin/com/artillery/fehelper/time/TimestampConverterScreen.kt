@@ -28,11 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +36,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artillery.fehelper.common.Border
 import com.artillery.fehelper.common.BrandBlue
 import com.artillery.fehelper.common.Ink
@@ -47,30 +45,124 @@ import com.artillery.fehelper.common.MutedInk
 import com.artillery.fehelper.common.PageBackground
 import com.artillery.fehelper.common.PageTitleBar
 import com.artillery.fehelper.common.SectionCard
+import com.artillery.state.StateViewModel
+import com.artillery.state.collectAsState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 
-@Composable
-internal fun TimestampConverterScreen(onBack: () -> Unit) {
-    val initialSnapshot = remember { nowSnapshot() }
-    var current by remember { mutableStateOf(Clock.System.now()) }
-    var isRunning by remember { mutableStateOf(true) }
-    var timestampInput by remember { mutableStateOf(initialSnapshot.seconds) }
-    var timestampUnit by remember { mutableStateOf(TimestampUnit.SECONDS) }
-    var timestampResult by remember { mutableStateOf<TimestampConversion?>(null) }
-    var localInput by remember { mutableStateOf(initialSnapshot.localTime) }
-    var localResult by remember { mutableStateOf<TimestampConversion?>(null) }
-    var selectedWorldClock by remember { mutableStateOf(8) }
+private data class RealtimeState(
+    val snapshot: TimeSnapshot,
+    val isRunning: Boolean,
+)
 
-    LaunchedEffect(isRunning) {
-        if (isRunning) {
-            while (true) {
-                current = Clock.System.now()
+private data class TimestampInputState(
+    val input: String,
+    val unit: TimestampUnit,
+    val result: TimestampConversion?,
+)
+
+private data class LocalTimeInputState(
+    val input: String,
+    val result: TimestampConversion?,
+)
+
+private data class WorldClockState(
+    val clocks: List<WorldClock>,
+    val selectedOffset: Int,
+)
+
+private data class TimestampConverterState(
+    val current: Instant,
+    val isRunning: Boolean,
+    val timestampInput: String,
+    val timestampUnit: TimestampUnit,
+    val timestampResult: TimestampConversion?,
+    val localInput: String,
+    val localResult: TimestampConversion?,
+    val selectedWorldClock: Int,
+) {
+    val realtime: RealtimeState
+        get() = RealtimeState(snapshot = nowSnapshot(now = current), isRunning = isRunning)
+
+    val timestamp: TimestampInputState
+        get() = TimestampInputState(input = timestampInput, unit = timestampUnit, result = timestampResult)
+
+    val localTime: LocalTimeInputState
+        get() = LocalTimeInputState(input = localInput, result = localResult)
+
+    val worldClock: WorldClockState
+        get() = WorldClockState(clocks = worldClocks(now = current), selectedOffset = selectedWorldClock)
+}
+
+private fun initialTimestampConverterState(): TimestampConverterState {
+    val now = Clock.System.now()
+    val snapshot = nowSnapshot(now = now)
+    return TimestampConverterState(
+        current = now,
+        isRunning = true,
+        timestampInput = snapshot.seconds,
+        timestampUnit = TimestampUnit.SECONDS,
+        timestampResult = null,
+        localInput = snapshot.localTime,
+        localResult = null,
+        selectedWorldClock = 8,
+    )
+}
+
+private class TimestampConverterViewModel : StateViewModel<TimestampConverterState>(
+    initialState = initialTimestampConverterState(),
+) {
+    init {
+        viewModelScope.launch {
+            while (isActive) {
+                if (state.value.isRunning) setState { copy(current = Clock.System.now()) }
                 delay(1000.milliseconds)
             }
         }
     }
+
+    fun onToggleRealtime() {
+        setState { copy(isRunning = !isRunning) }
+    }
+
+    fun onTimestampInputChange(value: String) {
+        setState { copy(timestampInput = value, timestampResult = null) }
+    }
+
+    fun onTimestampUnitChange(value: TimestampUnit) {
+        setState { copy(timestampUnit = value, timestampResult = null) }
+    }
+
+    fun onConvertTimestamp() {
+        setState {
+            copy(timestampResult = timestampToLocalTime(value = timestampInput, unit = timestampUnit))
+        }
+    }
+
+    fun onLocalInputChange(value: String) {
+        setState { copy(localInput = value, localResult = null) }
+    }
+
+    fun onConvertLocalTime() {
+        setState { copy(localResult = localTimeToTimestamp(value = localInput)) }
+    }
+
+    fun onWorldClockSelect(offset: Int) {
+        setState { copy(selectedWorldClock = offset) }
+    }
+}
+
+@Composable
+internal fun TimestampConverterScreen(onBack: () -> Unit) {
+    val viewModel: TimestampConverterViewModel = viewModel(initializer = { TimestampConverterViewModel() })
+    val realtimeState by viewModel.collectAsState(TimestampConverterState::realtime)
+    val timestampState by viewModel.collectAsState(TimestampConverterState::timestamp)
+    val localTimeState by viewModel.collectAsState(TimestampConverterState::localTime)
+    val worldClockState by viewModel.collectAsState(TimestampConverterState::worldClock)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -80,8 +172,6 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
     ) {
         val wide = maxWidth >= 900.dp
         val horizontalPadding = if (wide) 32.dp else 16.dp
-        val snapshot = nowSnapshot(now = current)
-        val clocks = worldClocks(now = current)
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -109,10 +199,9 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodyLarge.copy(color = MutedInk),
                     )
                     RealtimeCard(
-                        snapshot = snapshot,
+                        state = realtimeState,
                         wide = wide,
-                        isRunning = isRunning,
-                        onToggle = { isRunning = !isRunning },
+                        onToggle = viewModel::onToggleRealtime,
                     )
                     if (wide) {
                         Row(
@@ -121,63 +210,38 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
                             verticalAlignment = Alignment.Top,
                         ) {
                             TimestampInputCard(
-                                input = timestampInput,
-                                unit = timestampUnit,
-                                result = timestampResult,
-                                onInputChange = {
-                                    timestampInput = it
-                                    timestampResult = null
-                                },
-                                onUnitChange = {
-                                    timestampUnit = it
-                                    timestampResult = null
-                                },
-                                onConvert = { timestampResult = timestampToLocalTime(value = timestampInput, unit = timestampUnit) },
+                                state = timestampState,
+                                onInputChange = viewModel::onTimestampInputChange,
+                                onUnitChange = viewModel::onTimestampUnitChange,
+                                onConvert = viewModel::onConvertTimestamp,
                                 modifier = Modifier.weight(1f),
                             )
                             LocalTimeInputCard(
-                                input = localInput,
-                                result = localResult,
-                                onInputChange = {
-                                    localInput = it
-                                    localResult = null
-                                },
-                                onConvert = { localResult = localTimeToTimestamp(value = localInput) },
+                                state = localTimeState,
+                                onInputChange = viewModel::onLocalInputChange,
+                                onConvert = viewModel::onConvertLocalTime,
                                 modifier = Modifier.weight(1f),
                             )
                         }
                     } else {
                         TimestampInputCard(
-                            input = timestampInput,
-                            unit = timestampUnit,
-                            result = timestampResult,
-                            onInputChange = {
-                                timestampInput = it
-                                timestampResult = null
-                            },
-                            onUnitChange = {
-                                timestampUnit = it
-                                timestampResult = null
-                            },
-                            onConvert = { timestampResult = timestampToLocalTime(value = timestampInput, unit = timestampUnit) },
+                            state = timestampState,
+                            onInputChange = viewModel::onTimestampInputChange,
+                            onUnitChange = viewModel::onTimestampUnitChange,
+                            onConvert = viewModel::onConvertTimestamp,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         LocalTimeInputCard(
-                            input = localInput,
-                            result = localResult,
-                            onInputChange = {
-                                localInput = it
-                                localResult = null
-                            },
-                            onConvert = { localResult = localTimeToTimestamp(value = localInput) },
+                            state = localTimeState,
+                            onInputChange = viewModel::onLocalInputChange,
+                            onConvert = viewModel::onConvertLocalTime,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     WorldClockCard(
-                        clocks = clocks,
+                        state = worldClockState,
                         wide = wide,
-                        selectedOffset = selectedWorldClock,
-                        onSelect = { selectedWorldClock = it },
+                        onSelect = viewModel::onWorldClockSelect,
                     )
                 }
             }
@@ -187,19 +251,18 @@ internal fun TimestampConverterScreen(onBack: () -> Unit) {
 
 @Composable
 private fun RealtimeCard(
-    snapshot: TimeSnapshot,
+    state: RealtimeState,
     wide: Boolean,
-    isRunning: Boolean,
     onToggle: () -> Unit,
 ) {
     SectionCard(
         title = "当前时间",
-        description = "Asia/Shanghai · ${if (isRunning) "每秒自动更新" else "已暂停"}",
+        description = "Asia/Shanghai · ${if (state.isRunning) "每秒自动更新" else "已暂停"}",
     ) {
         val stats = listOf(
-            "本地时间" to snapshot.localTime,
-            "Unix 秒" to snapshot.seconds,
-            "Unix 毫秒" to snapshot.milliseconds,
+            "本地时间" to state.snapshot.localTime,
+            "Unix 秒" to state.snapshot.seconds,
+            "Unix 毫秒" to state.snapshot.milliseconds,
         )
         if (wide) {
             Row(
@@ -215,7 +278,7 @@ private fun RealtimeCard(
                         StatItem(modifier = Modifier.weight(1f), label = label, value = value)
                     }
                 }
-                RealtimeToggleButton(isRunning = isRunning, onToggle = onToggle)
+                RealtimeToggleButton(isRunning = state.isRunning, onToggle = onToggle)
             }
         } else {
             stats.forEachIndexed { index, (label, value) ->
@@ -224,7 +287,7 @@ private fun RealtimeCard(
             }
             Spacer(modifier = Modifier.height(16.dp))
             RealtimeToggleButton(
-                isRunning = isRunning,
+                isRunning = state.isRunning,
                 onToggle = onToggle,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -267,9 +330,7 @@ private fun StatItem(modifier: Modifier, label: String, value: String) {
 @Composable
 private fun TimestampInputCard(
     modifier: Modifier,
-    input: String,
-    unit: TimestampUnit,
-    result: TimestampConversion?,
+    state: TimestampInputState,
     onInputChange: (String) -> Unit,
     onUnitChange: (TimestampUnit) -> Unit,
     onConvert: () -> Unit,
@@ -277,7 +338,7 @@ private fun TimestampInputCard(
     Column(modifier = modifier) {
         SectionCard(title = "Unix 时间戳 → 本地时间", description = "按 Asia/Shanghai 展示转换结果") {
             OutlinedTextField(
-                value = input,
+                value = state.input,
                 onValueChange = onInputChange,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(text = "Unix 时间戳") },
@@ -285,7 +346,7 @@ private fun TimestampInputCard(
                 singleLine = true,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            UnitSelector(selected = unit, onSelected = onUnitChange)
+            UnitSelector(selected = state.unit, onSelected = onUnitChange)
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "转换为本地时间",
@@ -298,8 +359,8 @@ private fun TimestampInputCard(
                 style = MaterialTheme.typography.labelLarge.copy(color = Color.White, textAlign = TextAlign.Center),
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ResultField(label = "Asia/Shanghai 本地时间", value = result?.localTime)
-            ErrorText(error = result?.error)
+            ResultField(label = "Asia/Shanghai 本地时间", value = state.result?.localTime)
+            ErrorText(error = state.result?.error)
         }
     }
 }
@@ -307,15 +368,14 @@ private fun TimestampInputCard(
 @Composable
 private fun LocalTimeInputCard(
     modifier: Modifier,
-    input: String,
-    result: TimestampConversion?,
+    state: LocalTimeInputState,
     onInputChange: (String) -> Unit,
     onConvert: () -> Unit,
 ) {
     Column(modifier = modifier) {
         SectionCard(title = "本地时间 → Unix 时间戳", description = "输入时间按 Asia/Shanghai 解析") {
             OutlinedTextField(
-                value = input,
+                value = state.input,
                 onValueChange = onInputChange,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(text = "本地时间") },
@@ -334,10 +394,10 @@ private fun LocalTimeInputCard(
                 style = MaterialTheme.typography.labelLarge.copy(color = Color.White, textAlign = TextAlign.Center),
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ResultField(label = "Unix 秒", value = result?.seconds)
+            ResultField(label = "Unix 秒", value = state.result?.seconds)
             Spacer(modifier = Modifier.height(8.dp))
-            ResultField(label = "Unix 毫秒", value = result?.milliseconds)
-            ErrorText(error = result?.error)
+            ResultField(label = "Unix 毫秒", value = state.result?.milliseconds)
+            ErrorText(error = state.result?.error)
         }
     }
 }
@@ -384,9 +444,8 @@ private fun ErrorText(error: String?) {
 
 @Composable
 private fun WorldClockCard(
-    clocks: List<WorldClock>,
+    state: WorldClockState,
     wide: Boolean,
-    selectedOffset: Int,
     onSelect: (Int) -> Unit,
 ) {
     SectionCard(
@@ -397,14 +456,14 @@ private fun WorldClockCard(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            clocks.firstOrNull { it.offsetHours == selectedOffset }?.let { selectedClock ->
+            state.clocks.firstOrNull { it.offsetHours == state.selectedOffset }?.let { selectedClock ->
                 Text(
                     text = "当前选择：${selectedClock.label} · ${selectedClock.location} · ${selectedClock.localTime}",
                     style = MaterialTheme.typography.labelLarge.copy(color = BrandBlue),
                 )
             }
             val columns = if (wide) 2 else 1
-            clocks.chunked(columns).forEach { rowClocks ->
+            state.clocks.chunked(columns).forEach { rowClocks ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -412,7 +471,7 @@ private fun WorldClockCard(
                     rowClocks.forEach { clock ->
                         WorldClockItem(
                             clock = clock,
-                            selected = clock.offsetHours == selectedOffset,
+                            selected = clock.offsetHours == state.selectedOffset,
                             onClick = { onSelect(clock.offsetHours) },
                             modifier = Modifier.weight(1f),
                         )

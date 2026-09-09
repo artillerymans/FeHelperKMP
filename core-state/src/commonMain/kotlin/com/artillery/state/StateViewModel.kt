@@ -56,7 +56,7 @@ open class StateViewModel<S : Any>(
         }
     }
 
-    override fun onCleared() {
+    open override fun onCleared() {
         actions.close()
     }
 }

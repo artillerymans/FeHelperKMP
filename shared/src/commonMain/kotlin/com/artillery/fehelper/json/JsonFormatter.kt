@@ -33,9 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,12 +41,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artillery.fehelper.common.Border
 import com.artillery.fehelper.common.BrandBlue
 import com.artillery.fehelper.common.Ink
 import com.artillery.fehelper.common.MutedInk
 import com.artillery.fehelper.common.PageBackground
 import com.artillery.fehelper.common.PageTitleBar
+import com.artillery.state.StateViewModel
+import com.artillery.state.collectAsState
 import kotlinx.serialization.json.JsonElement
 
 private enum class JsonView {
@@ -57,48 +57,99 @@ private enum class JsonView {
     TABLE,
 }
 
+private data class JsonOutputState(
+    val value: String,
+    val error: String?,
+    val table: JsonTable?,
+    val view: JsonView,
+)
+
+private data class JsonFormatterState(
+    val rawJson: String = "",
+    val formattedJson: String = "",
+    val parsedElement: JsonElement? = null,
+    val table: JsonTable? = null,
+    val error: String? = null,
+    val view: JsonView = JsonView.JSON,
+) {
+    val output: JsonOutputState
+        get() = JsonOutputState(
+            value = formattedJson,
+            error = error,
+            table = table,
+            view = view,
+        )
+}
+
+private sealed interface JsonFormatterEvent {
+    data class InputChanged(val value: String) : JsonFormatterEvent
+    object Format : JsonFormatterEvent
+    object Sort : JsonFormatterEvent
+    object Decode : JsonFormatterEvent
+    data class ViewChanged(val view: JsonView) : JsonFormatterEvent
+}
+
+private class JsonFormatterViewModel : StateViewModel<JsonFormatterState>(initialState = JsonFormatterState()) {
+    fun onEvent(event: JsonFormatterEvent) {
+        when (event) {
+            is JsonFormatterEvent.InputChanged -> updateFromInput(value = event.value)
+            JsonFormatterEvent.Format -> parsedElementAction { state, element -> show(state = state, element = element) }
+            JsonFormatterEvent.Sort -> parsedElementAction { state, element ->
+                show(state = state, element = sortJson(element = element))
+            }
+            JsonFormatterEvent.Decode -> parsedElementAction { state, element ->
+                show(state = state, element = element, text = decodeJsonText(element = element))
+            }
+            is JsonFormatterEvent.ViewChanged -> setState { copy(view = event.view) }
+        }
+    }
+
+    private fun updateFromInput(value: String) {
+        val parsed = runCatching { parseJson(text = value) }.getOrNull()
+        setState {
+            if (parsed == null) {
+                copy(
+                    rawJson = value,
+                    formattedJson = "",
+                    parsedElement = null,
+                    table = null,
+                    error = "JSON 格式无效",
+                    view = JsonView.JSON,
+                )
+            } else {
+                copy(
+                    rawJson = value,
+                    formattedJson = formatJson(element = parsed),
+                    parsedElement = parsed,
+                    table = jsonTable(element = parsed),
+                    error = null,
+                    view = JsonView.JSON,
+                )
+            }
+        }
+    }
+
+    private fun parsedElementAction(action: (JsonFormatterState, JsonElement) -> JsonFormatterState) {
+        setState { parsedElement?.let { element -> action(this, element) } ?: this }
+    }
+
+    private fun show(
+        state: JsonFormatterState,
+        element: JsonElement,
+        text: String = formatJson(element = element),
+    ): JsonFormatterState = state.copy(
+        table = jsonTable(element = element),
+        formattedJson = text,
+        error = null,
+        view = JsonView.JSON,
+    )
+}
+
 @Composable
 internal fun JsonFormatterScreen(onBack: () -> Unit) {
-    var rawJson by remember { mutableStateOf("") }
-    var formattedJson by remember { mutableStateOf("") }
-    var displayElement by remember { mutableStateOf<JsonElement?>(null) }
-    var parsedElement by remember { mutableStateOf<JsonElement?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var view by remember { mutableStateOf(JsonView.JSON) }
-
-    fun updateFromInput(value: String) {
-        rawJson = value
-        val parsed = runCatching { parseJson(text = value) }.getOrNull()
-        parsedElement = parsed
-        displayElement = parsed
-        if (parsed == null) {
-            formattedJson = ""
-            error = "JSON 格式无效"
-        } else {
-            formattedJson = formatJson(element = parsed)
-            error = null
-        }
-        view = JsonView.JSON
-    }
-
-    fun show(element: JsonElement, text: String = formatJson(element)) {
-        displayElement = element
-        formattedJson = text
-        error = null
-        view = JsonView.JSON
-    }
-
-    fun format() {
-        parsedElement?.let { show(element = it) } ?: Unit
-    }
-
-    fun sort() {
-        parsedElement?.let { show(element = sortJson(element = it)) } ?: Unit
-    }
-
-    fun decode() {
-        parsedElement?.let { show(element = it, text = decodeJsonText(element = it)) } ?: Unit
-    }
+    val viewModel: JsonFormatterViewModel = viewModel(initializer = { JsonFormatterViewModel() })
+    val rawJson by viewModel.collectAsState(JsonFormatterState::rawJson)
+    val outputState by viewModel.collectAsState(JsonFormatterState::output)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -129,11 +180,8 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                         .padding(horizontal = horizontalPadding, vertical = 24.dp),
                 ) {
                     JsonToolbar(
-                        onFormat = ::format,
-                        onSort = ::sort,
-                        onDecode = ::decode,
-                        view = view,
-                        onViewChange = { view = it },
+                        view = outputState.view,
+                        onEvent = viewModel::onEvent,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     if (wide) {
@@ -144,16 +192,13 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                             JsonEditorPanel(
                                 title = "原始 JSON",
                                 value = rawJson,
-                                onValueChange = ::updateFromInput,
+                                onValueChange = { value -> viewModel.onEvent(JsonFormatterEvent.InputChanged(value = value)) },
                                 modifier = Modifier.weight(1f),
                                 height = 560.dp,
                             )
                             JsonOutputPanel(
                                 title = "格式化结果",
-                                value = formattedJson,
-                                error = error,
-                                element = displayElement,
-                                view = view,
+                                state = outputState,
                                 modifier = Modifier.weight(1f),
                                 height = 560.dp,
                             )
@@ -162,17 +207,14 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
                         JsonEditorPanel(
                             title = "原始 JSON",
                             value = rawJson,
-                            onValueChange = ::updateFromInput,
+                            onValueChange = { value -> viewModel.onEvent(JsonFormatterEvent.InputChanged(value = value)) },
                             modifier = Modifier.fillMaxWidth(),
                             height = 360.dp,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         JsonOutputPanel(
                             title = "格式化结果",
-                            value = formattedJson,
-                            error = error,
-                            element = displayElement,
-                            view = view,
+                            state = outputState,
                             modifier = Modifier.fillMaxWidth(),
                             height = 360.dp,
                         )
@@ -185,11 +227,8 @@ internal fun JsonFormatterScreen(onBack: () -> Unit) {
 
 @Composable
 private fun JsonToolbar(
-    onFormat: () -> Unit,
-    onSort: () -> Unit,
-    onDecode: () -> Unit,
     view: JsonView,
-    onViewChange: (JsonView) -> Unit,
+    onEvent: (JsonFormatterEvent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -201,7 +240,7 @@ private fun JsonToolbar(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .background(BrandBlue, RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClick = onFormat)
+                    .clickable(role = Role.Button, onClick = { onEvent(JsonFormatterEvent.Format) })
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
             )
@@ -210,7 +249,7 @@ private fun JsonToolbar(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .background(BrandBlue, RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClick = onSort)
+                    .clickable(role = Role.Button, onClick = { onEvent(JsonFormatterEvent.Sort) })
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
             )
@@ -219,7 +258,7 @@ private fun JsonToolbar(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .background(BrandBlue, RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClick = onDecode)
+                    .clickable(role = Role.Button, onClick = { onEvent(JsonFormatterEvent.Decode) })
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
             )
@@ -227,13 +266,13 @@ private fun JsonToolbar(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = view == JsonView.JSON,
-                onClick = { onViewChange(JsonView.JSON) },
+                onClick = { onEvent(JsonFormatterEvent.ViewChanged(view = JsonView.JSON)) },
                 label = { Text(text = "JSON") },
                 elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
             )
             FilterChip(
                 selected = view == JsonView.TABLE,
-                onClick = { onViewChange(JsonView.TABLE) },
+                onClick = { onEvent(JsonFormatterEvent.ViewChanged(view = JsonView.TABLE)) },
                 label = { Text(text = "表格") },
                 elevation = FilterChipDefaults.filterChipElevation(hoveredElevation = 0.dp),
             )
@@ -267,29 +306,26 @@ private fun JsonEditorPanel(
 private fun JsonOutputPanel(
     modifier: Modifier,
     title: String,
-    value: String,
-    error: String?,
-    element: JsonElement?,
-    view: JsonView,
+    state: JsonOutputState,
     height: Dp,
 ) {
     JsonPanel(
         modifier = modifier.height(height),
         title = title,
     ) {
-        if (view == JsonView.TABLE && element != null) {
-            JsonTableView(modifier = Modifier.weight(1f), table = jsonTable(element = element))
+        if (state.view == JsonView.TABLE && state.table != null) {
+            JsonTableView(modifier = Modifier.weight(1f), table = state.table)
         } else {
             OutlinedTextField(
-                value = value,
+                value = state.value,
                 onValueChange = {},
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp).weight(1f),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-                isError = error != null,
+                isError = state.error != null,
             )
         }
-        error?.let {
+        state.error?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = it, style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.error))
         }
