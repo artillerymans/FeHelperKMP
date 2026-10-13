@@ -57,6 +57,7 @@ import kotlin.math.round
 private enum class LoanMode(val title: String) {
     RATE("贷款利率计算"),
     SCHEDULE("还款明细计算"),
+    ACTUAL_RATE("实际年化反推"),
 }
 
 private enum class RepaymentMethod(val title: String) {
@@ -394,7 +395,7 @@ private fun LoanModeSwitch(
     onModeChange: (LoanMode) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         LoanMode.values().forEach { option ->
@@ -421,11 +422,15 @@ private fun LoanForm(
     onCalculate: () -> Unit,
 ) {
     SectionCard(
-        title = if (state.mode == LoanMode.SCHEDULE) "还款参数" else "利率参数",
-        description = if (state.mode == LoanMode.SCHEDULE) {
-            "输入年化利率，查看每期本金、利息和剩余金额"
-        } else {
-            "输入合同总还款额，反推出实际年化利率"
+        title = when (state.mode) {
+            LoanMode.SCHEDULE -> "还款参数"
+            LoanMode.RATE -> "利率参数"
+            LoanMode.ACTUAL_RATE -> "反推参数"
+        },
+        description = when (state.mode) {
+            LoanMode.SCHEDULE -> "输入年化利率，查看每期本金、利息和剩余金额"
+            LoanMode.RATE -> "输入合同总还款额，反推出实际年化利率"
+            LoanMode.ACTUAL_RATE -> "输入总还款额，按还款方式反推实际年化利率"
         },
     ) {
         LoanFieldPair(
@@ -478,6 +483,15 @@ private fun LoanForm(
                 )
             }
         }
+        if (state.mode == LoanMode.ACTUAL_RATE) {
+            Text(
+                text = when (state.method) {
+                    RepaymentMethod.EQUAL_PRINCIPAL -> "等额本金：月利率 = 2 × 利息总额 ÷ [本金 × (期数 + 1)]；年化 = 月利率 × 12。"
+                    RepaymentMethod.EQUAL_PAYMENT -> "等额本息：按固定月供反推月利率；年化 = 月利率 × 12。"
+                },
+                style = MaterialTheme.typography.bodySmall.copy(color = MutedInk),
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "计算",
@@ -502,22 +516,36 @@ private fun LoanResultCard(
     mode: LoanMode,
     wide: Boolean,
 ) {
-    if (mode == LoanMode.RATE) {
-        LoanSummaryCard(result = result)
-    } else {
+    if (mode == LoanMode.SCHEDULE) {
         LoanScheduleCard(result = result, wide = wide)
+    } else {
+        LoanSummaryCard(result = result, mode = mode)
     }
 }
 
 @Composable
-private fun LoanSummaryCard(result: LoanCalculation?) {
-    SectionCard(title = "推荐结果", description = "结果按输入的还款方式计算，实际合同以金融机构披露为准") {
+private fun LoanSummaryCard(result: LoanCalculation?, mode: LoanMode) {
+    val isActualRate = mode == LoanMode.ACTUAL_RATE
+    SectionCard(
+        title = if (isActualRate) "推演结果" else "推荐结果",
+        description = if (isActualRate) {
+            "按所选还款方式反推，年化按月利率 × 12 计算；实际合同以金融机构披露为准"
+        } else {
+            "结果按输入的还款方式计算，实际合同以金融机构披露为准"
+        },
+    ) {
         if (result == null) {
             EmptyResult()
         } else {
-            SummaryLine(label = "实际年化利率", value = percent(result.annualRate), emphasize = true)
+            SummaryLine(
+                label = "实际年化利率",
+                value = if (isActualRate) "${round(result.annualRate * 10) / 10}%" else percent(result.annualRate),
+                emphasize = true,
+            )
             SummaryLine(label = "利息总额", value = money(result.totalInterest), emphasize = true)
-            SummaryLine(label = "总还款额", value = money(result.totalRepayment), emphasize = false)
+            if (!isActualRate) {
+                SummaryLine(label = "总还款额", value = money(result.totalRepayment), emphasize = false)
+            }
         }
     }
 }
