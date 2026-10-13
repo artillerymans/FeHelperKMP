@@ -43,6 +43,9 @@ import com.artillery.fehelper.common.PageBackground
 import com.artillery.fehelper.common.ToolDefinition
 import com.artillery.fehelper.common.ToolEntryCard
 import com.artillery.fehelper.common.ToolLayout
+import com.artillery.fehelper.color.ColorConverterScreen
+import com.artillery.fehelper.id.UuidIdGeneratorScreen
+import com.artillery.fehelper.storage.StorageUnitConverterScreen
 import com.artillery.fehelper.json.JsonFormatterScreen
 import com.artillery.fehelper.loan.LoanCalculatorScreen
 import com.artillery.fehelper.password.RandomPasswordScreen
@@ -60,6 +63,9 @@ private const val TotpToolId = "totp"
 private const val WebSocketToolId = "websocket-tool"
 private const val RandomPasswordToolId = "random-password"
 private const val LoanCalculatorToolId = "loan-calculator"
+private const val ColorConverterToolId = "color-converter"
+private const val UuidIdGeneratorToolId = "uuid-id-generator"
+private const val StorageUnitConverterToolId = "storage-unit-converter"
 
 private val tools = listOf(
     ToolDefinition(
@@ -104,6 +110,24 @@ private val tools = listOf(
         description = "根据本金、期限和还款方式反推年化利率或查看逐月还款明细",
         category = "生活工具",
     ),
+    ToolDefinition(
+        id = ColorConverterToolId,
+        title = "颜色转换工具",
+        description = "在 HEX、RGB、HSL 和 HSV 颜色格式间转换并调整透明度",
+        category = "开发工具",
+    ),
+    ToolDefinition(
+        id = UuidIdGeneratorToolId,
+        title = "UUID / ID 生成器",
+        description = "生成和解析 UUID v4、Snowflake ID 与 NanoID",
+        category = "开发工具",
+    ),
+    ToolDefinition(
+        id = StorageUnitConverterToolId,
+        title = "存储单位转换",
+        description = "在 B、KB、MB、GB 与 TB 之间快速换算存储容量",
+        category = "开发工具",
+    ),
 )
 
 private enum class Destination {
@@ -115,6 +139,9 @@ private enum class Destination {
     WEBSOCKET_TOOL,
     RANDOM_PASSWORD,
     LOAN_CALCULATOR,
+    COLOR_CONVERTER,
+    UUID_ID_GENERATOR,
+    STORAGE_UNIT_CONVERTER,
 }
 
 private data class HomeContentState(
@@ -188,6 +215,9 @@ fun App() {
                                 WebSocketToolId -> backStack.add(Destination.WEBSOCKET_TOOL)
                                 RandomPasswordToolId -> backStack.add(Destination.RANDOM_PASSWORD)
                                 LoanCalculatorToolId -> backStack.add(Destination.LOAN_CALCULATOR)
+                                ColorConverterToolId -> backStack.add(Destination.COLOR_CONVERTER)
+                                UuidIdGeneratorToolId -> backStack.add(Destination.UUID_ID_GENERATOR)
+                                StorageUnitConverterToolId -> backStack.add(Destination.STORAGE_UNIT_CONVERTER)
                             }
                         },
                     )
@@ -218,6 +248,24 @@ fun App() {
                 }
                 entry(Destination.LOAN_CALCULATOR) {
                     LoanCalculatorScreen(
+                        modifier = Modifier,
+                        onBack = navigateBack,
+                    )
+                }
+                entry(Destination.COLOR_CONVERTER) {
+                    ColorConverterScreen(
+                        modifier = Modifier,
+                        onBack = navigateBack,
+                    )
+                }
+                entry(Destination.UUID_ID_GENERATOR) {
+                    UuidIdGeneratorScreen(
+                        modifier = Modifier,
+                        onBack = navigateBack,
+                    )
+                }
+                entry(Destination.STORAGE_UNIT_CONVERTER) {
+                    StorageUnitConverterScreen(
                         modifier = Modifier,
                         onBack = navigateBack,
                     )
